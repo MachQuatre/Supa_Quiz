@@ -1,25 +1,26 @@
-// Fichier : app.js
-
-require('dotenv').config();  // charge les variables depuis .env
+// app.js
+require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
-const quizRoutes = require('./routes/quizRoutes');
-const userRoutes = require('./routes/userRoutes');
+const quizRoutes = require('./routes/quizRoutes'); // On importe le router
+// const userRoutes = require('./routes/userRoutes'); // idem si tu en as besoin
 
 const app = express();
 
-// Connexion à la base de données
+// Connexion DB
 connectDB();
 
 // Middlewares
-app.use(express.json());  // pour parser le JSON
-// Si besoin : app.use(cors());  // si l’appli Flutter est sur un domaine différent
+app.use(express.json());
 
 // Routes
+// On monte le router quizRoutes sur /api/quiz
 app.use('/api/quiz', quizRoutes);
-app.use('/api/user', userRoutes);
 
-// Démarrage du serveur
+// Si tu as des routes user, on fera pareil
+// app.use('/api/user', userRoutes);
+
+// Lancement du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Serveur en écoute sur le port ${PORT}`);
