@@ -2,8 +2,9 @@
 require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
-const quizRoutes = require('./routes/quizRoutes'); // On importe le router
-// const userRoutes = require('./routes/userRoutes'); // idem si tu en as besoin
+const quizRoutes = require('./routes/quizRoutes'); 
+const scoreRoutes = require('./routes/scoreRoutes');
+const classRoutes = require('./routes/ClassRoutes'); // Import des routes Class
 
 const app = express();
 
@@ -14,14 +15,16 @@ connectDB();
 app.use(express.json());
 
 // Routes
-// On monte le router quizRoutes sur /api/quiz
 app.use('/api/quiz', quizRoutes);
+app.use('/api/class', classRoutes); // Monte les routes Class sur /api/class
+// 2) On monte le router “scoreRoutes” sur /api/scores
+app.use('/api/scores', scoreRoutes);
 
-// Si tu as des routes user, on fera pareil
+// userRoutes éventuelles
 // app.use('/api/user', userRoutes);
 
 // Lancement du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Serveur en écoute sur le port ${PORT}`);
+  console.log(`✅ Serveur en écoute sur le port ${PORT}`);
 });
