@@ -9,23 +9,32 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
   final QuizController _quizController = QuizController();
-  int questionKey = 0; // Déclencheur pour réinitialiser le timer
+  int questionKey = 0;
+  int timeRemaining = 10; // Variable pour suivre le temps restant
+
+  void _updateTimeRemaining(int newTime) {
+    setState(() {
+      timeRemaining = newTime;
+    });
+  }
 
   void _goToNextQuestion(int selectedAnswerIndex) {
     setState(() {
-      _quizController.nextQuestion(selectedAnswerIndex);
+      _quizController.nextQuestion(selectedAnswerIndex, timeRemaining);
 
-      // Si le quiz est terminé, recharger l'écran pour afficher l'écran de fin
       if (_quizController.quizFinished) {
         return;
       }
 
-      questionKey++; // Change la clé pour réinitialiser le Timer
+      questionKey++;
+      timeRemaining = 10; // Réinitialiser le temps pour la nouvelle question
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    var question = _quizController.currentQuestion;
+
     if (_quizController.quizFinished) {
       return Scaffold(
         appBar: AppBar(title: Text("Quiz Terminé")),
@@ -52,6 +61,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   setState(() {
                     _quizController.resetQuiz();
                     questionKey = 0;
+                    timeRemaining = 10;
                   });
                 },
                 child: Text("Recommencer"),
@@ -67,8 +77,6 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
       );
     }
-
-    var question = _quizController.currentQuestion;
 
     return Scaffold(
       appBar: AppBar(
@@ -101,14 +109,18 @@ class _QuizScreenState extends State<QuizScreen> {
             TimerWidget(
               onTimeUp: () {
                 setState(() {
-                  _quizController.nextQuestion(-1);
+                  _quizController.nextQuestion(
+                      -1, 0); // 0 sec restantes = score minimal
                   if (_quizController.quizFinished) {
                     return;
                   }
                   questionKey++;
+                  timeRemaining = 10;
                 });
               },
               keyTrigger: questionKey,
+              onTick:
+                  _updateTimeRemaining, // Met à jour le temps restant en live
             ),
             SizedBox(height: 20),
             SizedBox(

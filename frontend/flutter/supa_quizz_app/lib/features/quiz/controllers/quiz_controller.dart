@@ -7,17 +7,20 @@ class QuizController {
 
   Question get currentQuestion => questionsMock[currentQuestionIndex];
 
-  void nextQuestion(int selectedAnswerIndex) {
+  void nextQuestion(int selectedAnswerIndex, int timeRemaining) {
     if (selectedAnswerIndex != -1 &&
         selectedAnswerIndex == currentQuestion.correctAnswerIndex) {
-      score += 100; // Ajouter des points si bonne réponse
+      int points = 10 -
+          (10 - timeRemaining); // Calcul du score basé sur le temps restant
+      if (points < 1)
+        points = 1; // Minimum 1 point pour éviter un score négatif
+      score += points;
     }
 
     if (currentQuestionIndex < questionsMock.length - 1) {
       currentQuestionIndex++;
     } else {
-      quizFinished =
-          true; // Forcer la fin du quiz si c'était la dernière question
+      quizFinished = true; // Fin du quiz
     }
   }
 
