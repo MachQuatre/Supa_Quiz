@@ -3,6 +3,10 @@ import '../controllers/quiz_controller.dart';
 import '../widgets/timer_widget.dart';
 
 class QuizScreen extends StatefulWidget {
+  final String selectedTheme; // Ajout du thème sélectionné
+
+  QuizScreen({required this.selectedTheme});
+
   @override
   _QuizScreenState createState() => _QuizScreenState();
 }
@@ -11,6 +15,13 @@ class _QuizScreenState extends State<QuizScreen> {
   final QuizController _quizController = QuizController();
   int questionKey = 0;
   int timeRemaining = 10; // Variable pour suivre le temps restant
+
+  @override
+  void initState() {
+    super.initState();
+    _quizController
+        .setTheme(widget.selectedTheme); // Charger les questions du thème
+  }
 
   void _updateTimeRemaining(int newTime) {
     setState(() {
@@ -80,7 +91,8 @@ class _QuizScreenState extends State<QuizScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Quiz"),
+        title: Text(
+            "Quiz - ${widget.selectedTheme}"), // Afficher le thème en titre
         actions: [
           Padding(
             padding: const EdgeInsets.all(10.0),

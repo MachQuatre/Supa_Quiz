@@ -12,15 +12,12 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Supa Quizz',
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colors.black, // Fond noir
+        scaffoldBackgroundColor: Colors.black,
         primaryColor: Colors.purple,
-        textTheme: TextTheme(
-          bodyMedium: TextStyle(
-              color: Colors.white), // Texte en blanc pour la lisibilité
-        ),
       ),
       initialRoute: '/',
-      routes: AppRoutes.getRoutes(),
+      onGenerateRoute:
+          AppRoutes.generateRoute, // Remplace routes par onGenerateRoute
     );
   }
 }
