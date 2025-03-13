@@ -12,14 +12,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String userName = "Utilisateur";
   File? _profileImage;
 
-  // Simuler les scores précédents de l'utilisateur
-  final List<Map<String, dynamic>> previousScores = [
-    {"date": "01/02", "score": 1200},
-    {"date": "02/02", "score": 1400},
-    {"date": "03/02", "score": 1800},
-    {"date": "04/02", "score": 2000},
-    {"date": "05/02", "score": 2300},
-  ];
+  // Ajout de la sélection de thème
+  String selectedTheme = 'Général';
+  List<String> availableThemes = [
+    'Général',
+    'Mathématiques',
+    'Science',
+    'Histoire'
+  ]; // Exemple de thèmes
+
+  // Scores pour chaque thème
+  Map<String, List<Map<String, dynamic>>> scoresByTheme = {
+    'Général': [
+      {"date": "01/02", "score": 1200},
+      {"date": "02/02", "score": 1400},
+      {"date": "03/02", "score": 1800},
+      {"date": "04/02", "score": 2000},
+      {"date": "05/02", "score": 2300},
+    ],
+    'Mathématiques': [
+      {"date": "01/02", "score": 1000},
+      {"date": "02/02", "score": 1500},
+    ],
+    'Science': [
+      {"date": "01/02", "score": 1100},
+      {"date": "02/02", "score": 1150},
+    ],
+    'Histoire': [
+      {"date": "01/02", "score": 1050},
+      {"date": "02/02", "score": 1200},
+    ],
+  };
 
   void _editProfile() {
     TextEditingController nameController =
@@ -82,6 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          // Profile image and editing
           Stack(
             alignment: Alignment.center,
             children: [
@@ -98,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 bottom: 5,
                 right: 5,
                 child: GestureDetector(
-                  onTap: _editProfile,
+                  onTap: _pickImage,
                   child: CircleAvatar(
                     radius: 18,
                     backgroundColor: Colors.black54,
@@ -115,6 +139,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: const TextStyle(fontSize: 24, color: Colors.white),
           ),
           const SizedBox(height: 8),
+          DropdownButton<String>(
+            value: selectedTheme,
+            onChanged: (String? newValue) {
+              setState(() {
+                selectedTheme = newValue!;
+              });
+            },
+            items:
+                availableThemes.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+          ),
           const Text(
             'Score Total: 2300 pts',
             style: TextStyle(fontSize: 16, color: Colors.grey),
@@ -129,8 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Graphique des scores
+          // Score graph
           SizedBox(
             height: 250,
             width: double.infinity,
@@ -158,13 +196,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, _) {
-                        final labels = [
-                          "01/02",
-                          "02/02",
-                          "03/02",
-                          "04/02",
-                          "05/02"
-                        ];
+                        final labels = scoresByTheme[selectedTheme]!
+                            .map((score) => score["date"].toString())
+                            .toList();
                         return Text(
                           labels[value.toInt() % labels.length],
                           style: const TextStyle(
@@ -177,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: previousScores
+                    spots: scoresByTheme[selectedTheme]!
                         .asMap()
                         .entries
                         .map((entry) => FlSpot(entry.key.toDouble(),
@@ -206,7 +240,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
           const Text(
             'Historique des Scores',
@@ -214,15 +247,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 10),
-
-          // Tableau des scores
+          // Score history table
           Container(
             decoration: BoxDecoration(
               color: Colors.grey[900],
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
-              children: previousScores
+              children: scoresByTheme[selectedTheme]!
                   .map(
                     (entry) => ListTile(
                       title: Text(
@@ -239,7 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   .toList(),
             ),
           ),
-
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _editProfile,
