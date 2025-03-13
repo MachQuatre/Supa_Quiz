@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 
 class TimerWidget extends StatefulWidget {
   final VoidCallback onTimeUp;
-  final int keyTrigger; // Ajout d'un déclencheur pour forcer le reset
+  final int keyTrigger;
+  final Function(int) onTick; // Ajout du callback pour envoyer le temps restant
 
-  TimerWidget({required this.onTimeUp, required this.keyTrigger});
+  TimerWidget(
+      {required this.onTimeUp, required this.keyTrigger, required this.onTick});
 
   @override
   _TimerWidgetState createState() => _TimerWidgetState();
@@ -36,6 +38,7 @@ class _TimerWidgetState extends State<TimerWidget> {
         setState(() {
           if (_secondsRemaining > 0) {
             _secondsRemaining--;
+            widget.onTick(_secondsRemaining); // Envoie le temps restant
           } else {
             _timer?.cancel();
             widget.onTimeUp();
