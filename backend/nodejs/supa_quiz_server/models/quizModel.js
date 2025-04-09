@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const quizSchema = new mongoose.Schema({
-    quiz_id: { type: String, unique: true },
+    quiz_id: { type: String, unique: true, required: true }, // ✅ Assurez-vous que c'est un String et non ObjectId
     title: { type: String, required: true },
     theme: { type: String, required: true },
     difficulty: { type: String, enum: ["facile", "moyen", "difficile"], required: true },

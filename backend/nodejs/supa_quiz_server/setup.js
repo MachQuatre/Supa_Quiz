@@ -1,26 +1,34 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
+const User = require("./models/userModel");
 
-const DB_NAME = "quiz_app";
+const DB_NAME = "QuizDev";
 const mongoURI = process.env.MONGO_URI || `mongodb://localhost:27017/${DB_NAME}`;
 
-const collections = ["Users", "Quizzes", "Questions", "Sessions", "Responses"];
+// ✅ Toutes les collections en minuscule
+const collections = ["users", "quizzes", "questions", "sessions", "responses"];
 
+// ✅ Les indexes aussi doivent être en minuscule
 const indexes = {
-    Users: [{ email: 1 }],
-    Sessions: [{ user_id: 1 }, { questionnaire_id: 1 }],
-    Responses: [{ session_id: 1 }, { user_id: 1 }]
+    users: [{ email: 1 }],
+    sessions: [{ user_id: 1 }, { questionnaire_id: 1 }],
+    responses: [{ session_id: 1 }, { user_id: 1 }]
 };
 
 const indexOptions = {
-    Users: [{ unique: true }],
+    users: [{ unique: true }],
 };
 
 async function setupDatabase() {
     try {
-        await mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
-        console.log(`✅ Connexion à MongoDB réussie : ${mongoURI}`);
+        await mongoose.connect(mongoURI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
 
+        console.log(`✅ Connexion à MongoDB réussie : ${mongoURI}`);
         const db = mongoose.connection.db;
         const existingCollections = await db.listCollections().toArray();
         const existingNames = existingCollections.map(col => col.name);
@@ -37,11 +45,10 @@ async function setupDatabase() {
         for (const [collection, indexList] of Object.entries(indexes)) {
             for (let i = 0; i < indexList.length; i++) {
                 const index = indexList[i];
-                const options = indexOptions[collection] ? indexOptions[collection][i] : {};
+                const options = indexOptions[collection]?.[i] || {};
 
-                // Vérifier si l'index existe déjà pour éviter les conflits
                 const existingIndexes = await db.collection(collection).indexes();
-                const indexName = Object.keys(index)[0] + "_1"; // Exemple: "email_1"
+                const indexName = Object.keys(index)[0] + "_1";
 
                 if (!existingIndexes.some(idx => idx.name === indexName)) {
                     await db.collection(collection).createIndex(index, options);
@@ -50,6 +57,22 @@ async function setupDatabase() {
                     console.log(`✅ Index déjà existant pour ${collection}:`, index);
                 }
             }
+        }
+
+        const existingAdmin = await db.collection("users").findOne({ email: "admin@supaquiz.com" });
+        if (!existingAdmin) {
+            const hashedPassword = await bcrypt.hash("admin123", 10);
+            await db.collection("users").insertOne({
+                user_id: uuidv4(),
+                username: "admin",
+                email: "admin@supaquiz.com",
+                password: hashedPassword,
+                role: "admin",
+                score_total: 0
+            });
+            console.log("✅ Super Admin créé : admin@supaquiz.com / admin123");
+        } else {
+            console.log("🔐 Super Admin déjà existant.");
         }
 
         console.log("🎉 La base de données est prête !");

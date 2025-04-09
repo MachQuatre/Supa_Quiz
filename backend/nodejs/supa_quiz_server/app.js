@@ -17,6 +17,7 @@ app.use("/api/quiz", quizRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/responses", responseRoutes);
 app.use("/api/questions", questionRoutes);
+app.use("/api/quiz", quizRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Serveur démarré sur le port ${PORT}`));

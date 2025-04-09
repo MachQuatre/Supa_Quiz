@@ -1,4 +1,7 @@
+const mongoose = require("mongoose");
+const { v4: uuidv4 } = require("uuid"); // ✅ Import UUID
 const Question = require("../models/questionModel");
+const Quiz = require("../models/quizModel");
 
 // ✅ Récupérer toutes les questions
 exports.getAllQuestions = async (req, res) => {
@@ -40,22 +43,51 @@ exports.getQuestionsByTheme = async (req, res) => {
     }
 };
 
-// ✅ Ajouter une nouvelle question
 exports.createQuestion = async (req, res) => {
     try {
-        const { question_text, correct_answer, answer_options, difficulty, theme } = req.body;
+        const { quiz_id, question_text, answer_options, correct_answer, difficulty, theme } = req.body;
 
-        if (!question_text || !correct_answer || !answer_options || !theme) {
-            return res.status(400).json({ success: false, message: "Tous les champs sont requis" });
+        console.log("🔍 quiz_id reçu :", quiz_id);
+
+        if (!quiz_id) {
+            return res.status(400).json({ message: "L'ID du quiz est requis." });
         }
 
-        const newQuestion = new Question({ question_text, correct_answer, answer_options, difficulty, theme });
+        const newQuestion = new Question({
+            question_id: new mongoose.Types.ObjectId().toString(),  // ✅ Génère un ID unique
+            quiz_id,
+            question_text,
+            answer_options,
+            correct_answer,
+            difficulty,
+            theme
+        });        
+        
         await newQuestion.save();
+        console.log("✅ Question ajoutée :", newQuestion);
 
-        res.status(201).json({ success: true, message: "Question créée avec succès", question: newQuestion });
+        // 🔄 Mettre à jour le `question_count` du quiz
+        const updatedQuiz = await Quiz.findOneAndUpdate(
+            { quiz_id: String(quiz_id) },  
+            { $inc: { question_count: 1 } },
+            { new: true }
+        );        
+
+        if (!updatedQuiz) {
+            console.warn("⚠️ Quiz non trouvé, question ajoutée mais question_count non mis à jour.");
+            return res.status(404).json({ success: false, message: "Quiz non trouvé" });
+        }
+
+        console.log("🔄 Nombre de questions mis à jour :", updatedQuiz.question_count);
+
+        res.status(201).json({
+            message: "Question ajoutée avec succès",
+            question: newQuestion,
+            updatedQuiz
+        });
     } catch (error) {
         console.error("❌ Erreur lors de la création de la question :", error);
-        res.status(500).json({ success: false, message: "Erreur serveur" });
+        res.status(500).json({ success: false, message: "Erreur serveur", error: error.message });
     }
 };
 
