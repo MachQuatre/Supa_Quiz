@@ -2,27 +2,36 @@ const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const { v4: uuidv4 } = require("uuid"); // ✅ Ajoute ça
 
 exports.signup = async (req, res) => {
     try {
-        const { username, email, password } = req.body;
-
-        const existingUser = await User.findOne({ email });
-        if (existingUser) return res.status(400).json({ message: "Email déjà utilisé." });
-
-        const newUser = new User({ 
-            user_id: crypto.randomUUID(),
-            username,
-            email,
-            password 
-        });
-
-        await newUser.save();
-        res.status(201).json({ message: "Inscription réussie !" });
+      const { username, email, password, role } = req.body;
+  
+      const newUser = new User({
+        user_id: uuidv4(), // ✅ Maintenant ça marche
+        username,
+        email,
+        password,
+        role
+      });
+  
+      const savedUser = await newUser.save();
+  
+      res.status(201).json({
+        message: "Utilisateur créé avec succès",
+        user: {
+          user_id: savedUser.user_id,
+          username: savedUser.username,
+          email: savedUser.email,
+          role: savedUser.role
+        }
+      });
     } catch (error) {
-        res.status(500).json({ message: "Erreur serveur", error });
+      console.error("❌ Erreur lors de l'inscription :", error);
+      res.status(500).json({ message: "Erreur serveur", error });
     }
-};
+  };
 
 exports.login = async (req, res) => {
     try {
@@ -44,12 +53,18 @@ exports.login = async (req, res) => {
 
 exports.getUserProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select("-password");
+        console.log("🟢 ID utilisateur à chercher :", req.user.user_id);
+    
+        const user = await User.findOne({ user_id: req.user.user_id }).select("-password");
+    
         if (!user) {
             return res.status(404).json({ message: "Utilisateur non trouvé" });
         }
+    
         res.json(user);
     } catch (error) {
-        res.status(500).json({ message: "Erreur serveur" });
+        console.error("❌ Erreur MongoDB :", error);
+        res.status(500).json({ message: "Erreur serveur", error: error.message });
     }
+    
 };
