@@ -33,7 +33,7 @@ exports.signup = async (req, res) => {
     }
   };
 
-exports.login = async (req, res) => {
+  exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
@@ -43,9 +43,21 @@ exports.login = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(401).json({ message: "Mot de passe incorrect." });
 
-        const token = jwt.sign({ user_id: user.user_id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        const token = jwt.sign(
+            { user_id: user.user_id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
 
-        res.json({ message: "Connexion réussie", token });
+        // ✅ Ajoute ici le cookie avec toutes les options pour développement
+        res.cookie("token", token, {
+            httpOnly: true,
+            sameSite: "None", // ← important pour fetch cross-site
+            secure: false     // ← car tu es probablement en HTTP
+        });
+
+        // ✅ Ensuite réponse JSON normale
+        res.json({ message: "Connexion réussie", token, role: user.role });
     } catch (error) {
         res.status(500).json({ message: "Erreur serveur", error });
     }

@@ -13,8 +13,9 @@ exports.createQuiz = async (req, res) => {
             title,
             theme,
             difficulty,
-            question_count
-        });
+            question_count,
+            created_by: req.user.user_id,  // 🔥 correction ici
+        });        
 
         await newQuiz.save();
         res.status(201).json({ message: "Quiz créé avec succès", quiz: newQuiz });
@@ -70,5 +71,18 @@ exports.deleteQuiz = async (req, res) => {
         res.status(200).json({ message: "Quiz supprimé avec succès" });
     } catch (error) {
         res.status(500).json({ message: "Erreur serveur", error: error.message });
+    }
+};
+
+exports.getMyQuizzes = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+
+        const myQuizzes = await Quiz.find({ created_by: userId });
+
+        res.status(200).json(myQuizzes);
+    } catch (error) {
+        console.error("❌ Erreur lors de la récupération des quiz de l'utilisateur :", error);
+        res.status(500).json({ message: "Erreur serveur", error });
     }
 };

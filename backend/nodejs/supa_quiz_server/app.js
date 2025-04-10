@@ -1,6 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/db");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
@@ -12,6 +14,13 @@ app.use(express.json());
 
 connectDB();
 
+app.use(cookieParser()); // ← obligatoire AVANT d'utiliser le middleware auth
+app.use(cors({
+    origin: (origin, callback) => {
+        callback(null, true);
+    },
+    credentials: true,
+}));
 app.use("/api/auth", authRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/sessions", sessionRoutes);
