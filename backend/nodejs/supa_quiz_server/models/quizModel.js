@@ -7,6 +7,7 @@ const quizSchema = new mongoose.Schema({
     difficulty: { type: String, enum: ["facile", "moyen", "difficile"], required: true },
     question_count: { type: Number, required: true },
     creation_date: { type: Date, default: Date.now },
+    created_by: { type: String, required: true },
 });
 
 module.exports = mongoose.model("Quiz", quizSchema);
