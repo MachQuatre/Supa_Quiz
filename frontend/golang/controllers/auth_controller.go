@@ -1,20 +1,15 @@
 package controllers
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
 	"html/template"
+	"io"
 	"net/http"
-
-	"PageAdmin/config"
-	"PageAdmin/models"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		// Affiche le formulaire si ce n’est pas un POST (sécurité / fallback)
 		tmpl, _ := template.ParseFiles("views/login.html")
 		tmpl.Execute(w, nil)
 		return
@@ -28,32 +23,55 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 
-	var user models.User
-	users := config.GetCollection("users")
+	// Envoi des identifiants à l’API Node
+	body := map[string]string{"email": email, "password": password}
+	jsonBody, _ := json.Marshal(body)
 
-	err := users.FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
+	resp, err := http.Post("http://10.9.11.14:3000/api/auth/login", "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		showLoginError(w, "Connexion refusée")
+		return
+	}
+	defer resp.Body.Close()
+
+	// Lecture de la réponse JSON
+	respBody, _ := io.ReadAll(resp.Body)
+	var res struct {
+		Message string `json:"message"`
+		Token   string `json:"token"`
+		Role    string `json:"role"`
+	}
+	if err := json.Unmarshal(respBody, &res); err != nil {
+		showLoginError(w, "Erreur lecture réponse")
+		return
+	}
+
+	// Sécurité : accès réservé à super_user ou admin
+	if res.Role != "admin" && res.Role != "super_user" {
+		showLoginError(w, "Accès refusé : rôle insuffisant")
+		return
+	}
+
+	// Seul le rôle est stocké côté serveur
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_role",
+		Value:    res.Role,
+		Path:     "/",
+		HttpOnly: true,
+	})
+
+	// Injecte le token dans la page HTML via un champ caché (pour JS)
+	tmpl, err := template.ParseFiles("views/dashboard.html")
 	if err != nil {
-		showLoginError(w, "Utilisateur non trouvé")
+		showLoginError(w, "Erreur template dashboard")
 		return
 	}
 
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
-		showLoginError(w, "Mot de passe incorrect")
-		return
+	data := map[string]string{
+		"Role":  res.Role,
+		"Token": res.Token, // 🔐 transmis au JS via un champ caché ou script
 	}
-
-	if user.Role != "admin" && user.Role != "super_user" {
-		showLoginError(w, "Accès refusé")
-		return
-	}
-
-	cookie := &http.Cookie{
-		Name:  "session_role",
-		Value: user.Role,
-		Path:  "/",
-	}
-	http.SetCookie(w, cookie)
-	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+	tmpl.Execute(w, data)
 }
 
 func showLoginError(w http.ResponseWriter, message string) {
@@ -63,12 +81,20 @@ func showLoginError(w http.ResponseWriter, message string) {
 
 func Logout(w http.ResponseWriter, r *http.Request) {
 	// Supprime le cookie
-	cookie := &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:   "session_role",
 		Value:  "",
 		Path:   "/",
-		MaxAge: -1, // Expire le cookie
-	}
-	http.SetCookie(w, cookie)
+		MaxAge: -1,
+	})
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func WhoAmI(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session_role")
+	if err != nil {
+		http.Error(w, "non-auth", http.StatusUnauthorized)
+		return
+	}
+	w.Write([]byte(cookie.Value))
 }
