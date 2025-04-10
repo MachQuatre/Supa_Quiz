@@ -1,17 +1,13 @@
-// Fichier : models/quizModel.js
-
-const mongoose = require('mongoose');
-
-const questionSchema = new mongoose.Schema({
-  question: { type: String, required: true },
-  options: [String],       // Liste de choix
-  answerIndex: Number,     // Index de la réponse correcte dans options
-});
+const mongoose = require("mongoose");
 
 const quizSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  questions: [questionSchema], // On inclut directement un sous-schema
-  createdAt: { type: Date, default: Date.now },
+    quiz_id: { type: String, unique: true, required: true }, // ✅ Assurez-vous que c'est un String et non ObjectId
+    title: { type: String, required: true },
+    theme: { type: String, required: true },
+    difficulty: { type: String, enum: ["facile", "moyen", "difficile"], required: true },
+    question_count: { type: Number, required: true },
+    creation_date: { type: Date, default: Date.now },
+    created_by: { type: String, required: true },
 });
 
-module.exports = mongoose.model('Quiz', quizSchema);
+module.exports = mongoose.model("Quiz", quizSchema);

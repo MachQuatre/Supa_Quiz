@@ -1,18 +1,21 @@
-// config/db.js
-const mongoose = require('mongoose');
+require("dotenv").config();
+const mongoose = require("mongoose");
+
+const mongoURI = process.env.MONGO_URI;
+
+if (!mongoURI) {
+    console.error("❌ Erreur: La variable MONGO_URI est undefined !");
+    process.exit(1);
+}
 
 const connectDB = async () => {
-  try {
-    const uri = process.env.MONGODB_URI || 'mongodb://10.9.5.123:27017/quiz_app';
-    const conn = await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log('MongoDB connecté sur', conn.connection.host);
-  } catch (error) {
-    console.error('Erreur de connexion à MongoDB:', error);
-    process.exit(1);
-  }
+    try {
+        await mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
+        console.log("✅ Connexion à MongoDB réussie !");
+    } catch (error) {
+        console.error("❌ Erreur de connexion MongoDB:", error);
+        process.exit(1);
+    }
 };
 
 module.exports = connectDB;
