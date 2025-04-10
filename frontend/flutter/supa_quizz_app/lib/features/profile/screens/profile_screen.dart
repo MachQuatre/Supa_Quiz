@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../core/services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -9,17 +12,51 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String userName = "Utilisateur";
+  String userName = "";
+  String email = "";
+  int scoreTotal = 0;
   File? _profileImage;
+  bool isLoading = true;
 
-  // Simuler les scores précédents de l'utilisateur
-  final List<Map<String, dynamic>> previousScores = [
-    {"date": "01/02", "score": 1200},
-    {"date": "02/02", "score": 1400},
-    {"date": "03/02", "score": 1800},
-    {"date": "04/02", "score": 2000},
-    {"date": "05/02", "score": 2300},
-  ];
+  // Placeholder pour futur historique dynamique
+  final List<Map<String, dynamic>> previousScores = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    print("📦 Token récupéré : $token");
+
+    if (token == null || token.isEmpty) {
+      print("❌ Aucun token trouvé !");
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final response = await ApiService.get('/auth/me', token: token);
+      print("✅ Profil récupéré : $response");
+
+      setState(() {
+        userName = response['username'];
+        email = response['email'];
+        scoreTotal = response['score_total'];
+        isLoading = false; // ✅ on sort du chargement ici
+      });
+    } catch (e) {
+      print("❌ Erreur récupération profil: $e");
+      setState(() {
+        isLoading = false; // ✅ on sort aussi en cas d'erreur
+      });
+    }
+  }
 
   void _editProfile() {
     TextEditingController nameController =
@@ -65,198 +102,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Profil',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              CircleAvatar(
-                radius: 60,
-                backgroundColor: Colors.purple,
-                backgroundImage:
-                    _profileImage != null ? FileImage(_profileImage!) : null,
-                child: _profileImage == null
-                    ? const Icon(Icons.person, size: 60, color: Colors.white)
-                    : null,
-              ),
-              Positioned(
-                bottom: 5,
-                right: 5,
-                child: GestureDetector(
-                  onTap: _editProfile,
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Colors.black54,
-                    child:
-                        const Icon(Icons.edit, color: Colors.white, size: 18),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            userName,
-            style: const TextStyle(fontSize: 24, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Score Total: 2300 pts',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Progression des Scores',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Graphique des scores
-          SizedBox(
-            height: 250,
-            width: double.infinity,
-            child: LineChart(
-              LineChartData(
-                backgroundColor: Colors.grey[850],
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(color: Colors.grey, width: 1),
-                ),
-                gridData: FlGridData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, _) => Text(
-                        '${value.toInt()} pts',
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                      interval: 500,
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, _) {
-                        final labels = [
-                          "01/02",
-                          "02/02",
-                          "03/02",
-                          "04/02",
-                          "05/02"
-                        ];
-                        return Text(
-                          labels[value.toInt() % labels.length],
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
-                        );
-                      },
-                      interval: 1,
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: previousScores
-                        .asMap()
-                        .entries
-                        .map((entry) => FlSpot(entry.key.toDouble(),
-                            entry.value["score"].toDouble()))
-                        .toList(),
-                    isCurved: true,
-                    gradient: LinearGradient(
-                      colors: [Colors.purple, Colors.purple.withOpacity(0.5)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.purple.withOpacity(0.5),
-                          Colors.purple.withOpacity(0.1),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-          const Text(
-            'Historique des Scores',
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 10),
-
-          // Tableau des scores
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(10),
-            ),
+    return isLoading
+        ? const Center(child: CircularProgressIndicator(color: Colors.purple))
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-              children: previousScores
-                  .map(
-                    (entry) => ListTile(
-                      title: Text(
-                        "Date : ${entry['date']}",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: Text(
-                        "${entry['score']} pts",
-                        style: TextStyle(
-                            color: Colors.green, fontWeight: FontWeight.bold),
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Profil',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: Colors.purple,
+                      backgroundImage: _profileImage != null
+                          ? FileImage(_profileImage!)
+                          : null,
+                      child: _profileImage == null
+                          ? const Icon(Icons.person,
+                              size: 60, color: Colors.white)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 5,
+                      right: 5,
+                      child: GestureDetector(
+                        onTap: _editProfile,
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.black54,
+                          child: const Icon(Icons.edit,
+                              color: Colors.white, size: 18),
+                        ),
                       ),
                     ),
-                  )
-                  .toList(),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  userName,
+                  style: const TextStyle(fontSize: 24, color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  email,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Score Total: $scoreTotal pts',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Progression des Scores',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  height: 200,
+                  color: Colors.grey[850],
+                  child: LineChart(LineChartData(
+                    gridData: FlGridData(show: false),
+                    titlesData: FlTitlesData(show: false),
+                    borderData: FlBorderData(show: false),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: [
+                          FlSpot(0, 0),
+                          FlSpot(1, 1),
+                          FlSpot(2, 1.5),
+                          FlSpot(3, 2.5)
+                        ],
+                        isCurved: true,
+                        color: Colors.purple,
+                        belowBarData: BarAreaData(show: false),
+                      )
+                    ],
+                  )),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: _editProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Modifier le Profil',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
             ),
-          ),
-
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _editProfile,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            child: const Text(
-              'Modifier le Profil',
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 }
