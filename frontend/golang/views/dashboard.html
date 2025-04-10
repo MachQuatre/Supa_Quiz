@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Utilisateur - Dashboard</title>
     <script src="/static/js/dashboard.js" defer></script>
     <style>
@@ -26,7 +27,7 @@
         <a href="/logout">🚪 Se déconnecter</a>
     </div>
 
-    <!-- 🔐 Token JWT injecté par le template Go -->
+    <!-- 🔐 Token JWT injecté dynamiquement via Go -->
     <input type="hidden" id="token" value="{{.Token}}">
 
     <div id="menu">
@@ -46,27 +47,43 @@
 
         <div id="add-question" class="section">
             <h2>Ajouter une Question</h2>
-            <form action="/add-question" method="POST">
-                <label>Intitulé : <input type="text" name="question" required></label><br><br>
-                <label>Réponse A : <input type="text" name="optionA" required></label><br>
-                <label>Réponse B : <input type="text" name="optionB" required></label><br>
-                <label>Réponse C : <input type="text" name="optionC" required></label><br>
-                <label>Réponse D : <input type="text" name="optionD" required></label><br><br>
+            <form id="add-question-form">
+                <label for="quiz-select">Sélectionnez un questionnaire :</label>
+                <select id="quiz-select" name="quiz_id" required></select>
+        
+                <label>Thème : <input type="text" name="theme" required></label><br>
+                <label>Difficulté :
+                    <select name="difficulty" required>
+                        <option value="facile">Facile</option>
+                        <option value="moyen">Moyen</option>
+                        <option value="difficile">Difficile</option>
+                    </select>
+                </label><br><br>
+        
+                <label>Intitulé : <input type="text" name="question_text" required></label><br><br>
+                <label>Réponse A : <input type="text" name="answerA" required></label><br>
+                <label>Réponse B : <input type="text" name="answerB" required></label><br>
+                <label>Réponse C : <input type="text" name="answerC" required></label><br>
+                <label>Réponse D : <input type="text" name="answerD" required></label><br><br>
+        
                 <label>Bonne réponse :
-                    <select name="correct" required>
+                    <select name="correct_answer" required>
                         <option value="A">Réponse A</option>
                         <option value="B">Réponse B</option>
                         <option value="C">Réponse C</option>
                         <option value="D">Réponse D</option>
                     </select>
                 </label><br><br>
+        
                 <button type="submit">✅ Ajouter la question</button>
             </form>
         </div>
+        
+        
 
         <div id="add-quiz" class="section">
             <h2>Ajouter un Questionnaire</h2>
-            <form action="/create-quiz" method="POST">
+            <form id="create-quiz-form">
                 <label>Nom du questionnaire : <input type="text" name="title" required></label><br><br>
                 <label>Thème : <input type="text" name="theme" required></label><br><br>
                 <label>Difficulté :
