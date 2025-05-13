@@ -1,0 +1,77 @@
+{
+    "title": "Quiz Culture Générale Niveau 1",
+    "theme": "Culture Générale",
+    "questions": [
+      {
+        "content": "Qui a peint La Cène ?",
+        "options": ["Michel-Ange", "Raphaël", "Léonard de Vinci", "Donatello"],
+        "answer": 2,
+        "theme": "art",
+        "difficulty": "facile"
+      },
+      {
+        "content": "Combien y a-t-il de planètes dans le système solaire ?",
+        "options": ["7", "8", "9", "10"],
+        "answer": 1,
+        "theme": "astronomie",
+        "difficulty": "facile"
+      },
+      {
+        "content": "Dans quel pays se trouve le Machu Picchu ?",
+        "options": ["Chili", "Mexique", "Pérou", "Argentine"],
+        "answer": 2,
+        "theme": "géographie",
+        "difficulty": "facile"
+      },
+      {
+        "content": "Qui est Jules César ?",
+        "options": ["Empereur grec", "Philosophe", "Empereur romain", "Général romain"],
+        "answer": 3,
+        "theme": "histoire",
+        "difficulty": "difficile"
+      },
+      {
+        "content": "Quelle est la racine carrée de 144 ?",
+        "options": ["10", "12", "14", "16"],
+        "answer": 1,
+        "theme": "mathématiques",
+        "difficulty": "facile"
+      },
+      {
+        "content": "Quel est l’organe principal de la respiration ?",
+        "options": ["Cœur", "Poumons", "Foie", "Estomac"],
+        "answer": 1,
+        "theme": "biologie",
+        "difficulty": "facile"
+      },
+      {
+        "content": "En quelle année l’homme a-t-il marché sur la Lune ?",
+        "options": ["1965", "1969", "1971", "1975"],
+        "answer": 1,
+        "theme": "histoire",
+        "difficulty": "moyen"
+      },
+      {
+        "content": "Quel est le plus grand désert du monde ?",
+        "options": ["Sahara", "Gobi", "Antarctique", "Kalahari"],
+        "answer": 2,
+        "theme": "géographie",
+        "difficulty": "moyen"
+      },
+      {
+        "content": "Quelle est la langue officielle du Brésil ?",
+        "options": ["Espagnol", "Français", "Portugais", "Anglais"],
+        "answer": 2,
+        "theme": "langues",
+        "difficulty": "facile"
+      },
+      {
+        "content": "Quelle est la formule chimique de l’eau ?",
+        "options": ["H2O", "O2", "CO2", "H2SO4"],
+        "answer": 0,
+        "theme": "chimie",
+        "difficulty": "facile"
+      }
+    ]
+  }
+  

@@ -2,23 +2,35 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
-const User = require("./models/userModel");
+const User = require("../models/userModel");
 
 const DB_NAME = "QuizDev";
 const mongoURI = process.env.MONGO_URI || `mongodb://localhost:27017/${DB_NAME}`;
 
 // ✅ Toutes les collections en minuscule
-const collections = ["users", "quizzes", "questions", "sessions", "responses"];
+const collections = [
+    "users",
+    "quizzes",
+    "questions",
+    "sessions",
+    "responses",
+    "gamesessions",      // ✅ nouvelle collection
+    "usersessions"       // ✅ nouvelle collection
+];
 
 // ✅ Les indexes aussi doivent être en minuscule
 const indexes = {
     users: [{ email: 1 }],
     sessions: [{ user_id: 1 }, { questionnaire_id: 1 }],
-    responses: [{ session_id: 1 }, { user_id: 1 }]
+    responses: [{ session_id: 1 }, { user_id: 1 }],
+    gamesessions: [{ session_id: 1 }],
+    usersessions: [{ user_session_id: 1 }, { user_id: 1 }]
 };
 
 const indexOptions = {
     users: [{ unique: true }],
+    gamesessions: [{ unique: true }],
+    usersessions: [{ unique: true }, {}]
 };
 
 async function setupDatabase() {
