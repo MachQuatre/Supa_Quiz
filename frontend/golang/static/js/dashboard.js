@@ -31,6 +31,7 @@ function loadUserQuizzes() {
         tbody.innerHTML = "";
         data.forEach(quiz => {
             const row = document.createElement("tr");
+            row.dataset.quizId = quiz.quiz_id; // 🆕 utile pour les actions
             row.innerHTML = `
                 <td>${quiz.title}</td>
                 <td>${quiz.theme}</td>
@@ -39,8 +40,10 @@ function loadUserQuizzes() {
             `;
             tbody.appendChild(row);
         });
+        attachQuizActionButtons(); // ✅ ajoute les boutons dynamiquement
     });
 }
+
 
 function loadUserQuizzesForQuestions() {
     const token = document.getElementById("token")?.value;

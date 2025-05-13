@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Utilisateur - Dashboard</title>
     <script src="/static/js/dashboard.js" defer></script>
+    <script src="/static/js/quizActions.js" defer></script>
     <style>
         #menu { margin-bottom: 20px; }
         .section { display: none; }
@@ -95,7 +96,7 @@
                 </label><br><br>
                 <button type="submit">📋 Ajouter le questionnaire</button>
             </form>
-
+        
             <h3>Mes Questionnaires</h3>
             <table id="quiz-table">
                 <thead>
@@ -104,13 +105,23 @@
                         <th>Thème</th>
                         <th>Difficulté</th>
                         <th>Nombre de Questions</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- JS remplit ce tableau dynamiquement -->
                 </tbody>
             </table>
+        
+            <!-- Détails des questions du quiz sélectionné -->
+            <div id="quiz-details" style="margin-top: 30px; display: none;">
+                <h4>📚 Questions du Questionnaire : <span id="selected-quiz-title"></span></h4>
+                <ul id="question-list">
+                    <!-- Questions seront injectées ici par JS -->
+                </ul>
+            </div>
         </div>
+        
 
         <div id="create-session" class="section">
             <h2>Créer une Session de Jeu</h2>
