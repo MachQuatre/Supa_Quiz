@@ -9,14 +9,22 @@ function showSection(id) {
     if (selected) {
         selected.style.display = 'block';
 
-        if (id === "add-quiz") loadUserQuizzes();
-        if (id === "add-question") loadUserQuizzesForQuestions();
+        if (id === "add-quiz") {
+            loadUserQuizzes();
+        }
+
+        if (id === "add-question") {
+            loadUserQuizzesForQuestions();
+            setupBulkQuestionUpload(); // ✅ Appelé correctement ici
+        }
+
         if (id === "create-session") {
             loadQuizzesForSession();
-            loadActiveSessions(); // ✅ nouvelle ligne
+            loadActiveSessions();
         }
     }
 }
+
 
 function loadUserQuizzes() {
     const token = document.getElementById("token")?.value;
@@ -44,7 +52,6 @@ function loadUserQuizzes() {
     });
 }
 
-
 function loadUserQuizzesForQuestions() {
     const token = document.getElementById("token")?.value;
     if (!token) return;
@@ -54,14 +61,31 @@ function loadUserQuizzesForQuestions() {
     })
     .then(res => res.json())
     .then(data => {
-        const quizSelect = document.getElementById("quiz-select");
-        quizSelect.innerHTML = '<option value="">-- Sélectionnez un questionnaire --</option>';
+        const quizSelect1 = document.getElementById("quiz-select");
+        const quizSelect2 = document.getElementById("quiz-id-bulk");
+
+        if (!quizSelect1 || !quizSelect2) {
+            console.warn("⚠️ Les éléments <select> ne sont pas encore disponibles.");
+            return;
+        }
+
+        quizSelect1.innerHTML = '<option value="">-- Sélectionnez un questionnaire --</option>';
+        quizSelect2.innerHTML = '<option value="">-- Sélectionnez un questionnaire --</option>';
+
         data.forEach(quiz => {
-            const option = document.createElement("option");
-            option.value = quiz.quiz_id;
-            option.textContent = quiz.title;
-            quizSelect.appendChild(option);
+            const opt1 = document.createElement("option");
+            opt1.value = quiz.quiz_id;
+            opt1.textContent = quiz.title;
+            quizSelect1.appendChild(opt1);
+
+            const opt2 = document.createElement("option");
+            opt2.value = quiz.quiz_id;
+            opt2.textContent = quiz.title;
+            quizSelect2.appendChild(opt2);
         });
+    })
+    .catch(err => {
+        console.error("❌ Erreur chargement des quiz :", err);
     });
 }
 
@@ -369,3 +393,63 @@ function closeSession(sessionCode) {
         console.error("❌ Échec désactivation session :", err.message);
     });
 }
+document.addEventListener("DOMContentLoaded", () => {
+    const token = document.getElementById("token")?.value;
+    const userNameSpan = document.getElementById("user-name");
+
+    if (token && userNameSpan) {
+        fetch(`http://${IP}:${PORT}/api/auth/me`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(user => {
+            if (user && user.username) {
+                userNameSpan.textContent = user.username;
+            }
+        })
+        .catch(err => {
+            console.warn("❌ Erreur récupération nom utilisateur :", err);
+        });
+    }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    const promoteForm = document.getElementById("promote-form");
+    const demoteForm = document.getElementById("demote-form");
+
+    if (promoteForm) {
+        promoteForm.addEventListener("submit", async e => {
+            e.preventDefault();
+            const email = promoteForm.querySelector("input[name='email']").value;
+            const msgDiv = document.getElementById("promote-message");
+
+            const res = await fetch("/promote-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `email=${encodeURIComponent(email)}`
+            });
+
+            const text = await res.text();
+            msgDiv.textContent = text;
+            msgDiv.style.color = res.ok ? "green" : "red";
+        });
+    }
+
+    if (demoteForm) {
+        demoteForm.addEventListener("submit", async e => {
+            e.preventDefault();
+            const email = demoteForm.querySelector("input[name='email']").value;
+            const msgDiv = document.getElementById("demote-message");
+
+            const res = await fetch("/demote-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `email=${encodeURIComponent(email)}`
+            });
+
+            const text = await res.text();
+            msgDiv.textContent = text;
+            msgDiv.style.color = res.ok ? "green" : "red";
+        });
+    }
+});

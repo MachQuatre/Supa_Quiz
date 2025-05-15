@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Utilisateur - Dashboard</title>
     <script src="/static/js/dashboard.js" defer></script>
+    <script src="/static/js/QuestionEnGroupe.js" defer></script>
     <script src="/static/js/quizActions.js" defer></script>
+    
+
     <style>
         #menu { margin-bottom: 20px; }
         .section { display: none; }
@@ -24,7 +27,7 @@
 </head>
 <body>
     <div class="topbar">
-        <h1>Bienvenue, Super Utilisateur</h1>
+        <h1 id="welcome-message">Bienvenue, <span id="user-name"></span></h1>
         <a href="/logout">🚪 Se déconnecter</a>
     </div>
 
@@ -78,9 +81,20 @@
         
                 <button type="submit">✅ Ajouter la question</button>
             </form>
+
+                <!-- Formulaire JSON -->
+            <h2>📥 Ajouter plusieurs questions (JSON)</h3>
+
+            <form id="bulk-question-form">
+                <label for="quiz-id-bulk">📋 Sélectionnez un questionnaire :</label>
+                <select id="quiz-id-bulk" name="quiz_id" required></select><br><br>
+
+                <label for="json-file">📄 Choisissez un fichier JSON :</label>
+                <input type="file" id="json-file" accept="application/json" required><br><br>
+
+                <button type="submit">🚀 Envoyer les questions</button>
+            </form>
         </div>
-        
-        
 
         <div id="add-quiz" class="section">
             <h2>Ajouter un Questionnaire</h2>
@@ -159,7 +173,7 @@
         <div id="promotion-tools" class="section">
             <h2>Gestion des Utilisateurs</h2>
 
-            <form action="/promote-user" method="POST" style="margin-bottom: 30px;">
+            <form id="promote-form" style="margin-bottom: 30px;">
                 <fieldset>
                     <legend>⚡ Promouvoir un Utilisateur</legend>
                     <label>Email :
@@ -168,8 +182,9 @@
                     <button type="submit">⚡ Promouvoir</button>
                 </fieldset>
             </form>
-
-            <form action="/demote-user" method="POST">
+            <div id="promote-message" class="status-msg" style="margin-bottom: 20px; font-weight: bold;"></div>
+            
+            <form id="demote-form">
                 <fieldset>
                     <legend>⬇️ Rétrograder un Utilisateur</legend>
                     <label>Email :
@@ -178,6 +193,8 @@
                     <button type="submit">⬇️ Rétrograder</button>
                 </fieldset>
             </form>
+            <div id="demote-message" class="status-msg" style="margin-top: 10px; font-weight: bold;"></div>
+            
         </div>
     </div>
 </body>

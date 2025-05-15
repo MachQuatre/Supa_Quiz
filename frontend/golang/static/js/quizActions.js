@@ -51,7 +51,7 @@ function openQuizDetails(quizId, title) {
                 ${q.answer_options.map(opt => `- ${opt}`).join("<br>")}
                 <br>✅ Bonne réponse : ${q.correct_answer}
                 <br>🎯 Thème : ${q.theme} | 📈 Difficulté : ${q.difficulty}
-                <br><<button onclick="confirmDeleteQuestion('${q.question_id}', '${q.question_text}', '${quizId}')">🗑️ Supprimer la question</button>
+                <br><button onclick="confirmDeleteQuestion('${q.question_id}', '${q.question_text}', '${quizId}')">🗑️ Supprimer la question</button>
                 <hr>`;
             list.appendChild(item);
         });
