@@ -9,6 +9,7 @@ const responseRoutes = require("./routes/responseRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const gameSessionRoutes = require("./routes/gameSessionRoutes");
 const userSessionRoutes = require("./routes/userSessionRoutes");
+const badgeRoutes = require("./routes/badgeRoutes");
 
 const app = express();
 app.use(express.json());
@@ -26,10 +27,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/responses", responseRoutes);
 app.use("/api/questions", questionRoutes);
-app.use("/api/quiz", quizRoutes);
 app.use('/api/game-sessions', gameSessionRoutes);
 app.use('/api/user-sessions', userSessionRoutes);
 app.use('/api/import', require('./routes/importRoutes'));
+app.use("/api/badges", badgeRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Serveur démarré sur le port ${PORT}`));

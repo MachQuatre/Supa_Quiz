@@ -1,58 +1,55 @@
-const Quiz = require('../models/quizModel');
-const Question = require('../models/questionModel');
-const mongoose = require('mongoose');
+const Question = require("../models/questionModel");
+const Quiz = require("../models/quizModel");
+const crypto = require("crypto");
 
-const importQuestionnaire = async (req, res) => {
+exports.importQuestionnaire = async (req, res) => {
   try {
-    const data = req.body;
+    const { quiz_id, title, theme, difficulty, questions } = req.body;
 
-    if (!data || !data.title || !Array.isArray(data.questions) || data.questions.length === 0) {
-      return res.status(400).json({ error: 'JSON invalide : titre ou liste de questions manquants.' });
+    if (!quiz_id || !title || !theme || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({
+        error: "quiz_id, title, theme et une liste de questions sont requis."
+      });
     }
 
-    // Création manuelle d’un ObjectId pour le quiz
-    const quizId = new mongoose.Types.ObjectId();
+    // 1. Vérifie que le quiz existe
+    const quiz = await Quiz.findOne({ quiz_id });
+    if (!quiz) {
+      return res.status(404).json({ error: "Quiz non trouvé avec ce quiz_id." });
+    }
 
-    // Création du quiz
-    const newQuiz = new Quiz({
-      _id: quizId,
-      title: data.title,
-      theme: data.theme || 'Général',
-      difficulty: data.difficulty || 'moyen',
-      question_count: data.questions.length,
-      created_by: req.user.user_id,
-    });
+    // 2. Met à jour les métadonnées du quiz
+    quiz.title = title;
+    quiz.theme = theme;
+    if (difficulty) quiz.difficulty = difficulty;
+    quiz.question_count += questions.length;
 
-    await newQuiz.save();
+    await quiz.save();
 
-    // Création des questions (avec save() au lieu de insertMany)
-    for (const q of data.questions) {
-      if (!q.content || !q.options || typeof q.answer !== 'number' || !q.theme) {
-        throw new Error(`Chaque question doit contenir 'content', 'options', 'answer' et 'theme'.`);
+    // 3. Ajout des questions
+    for (const q of questions) {
+      if (!q.content || !Array.isArray(q.options) || typeof q.answer !== "number" || !q.theme) {
+        throw new Error("Chaque question doit contenir content, options, answer et theme.");
       }
 
       const question = new Question({
-        content: q.content,
-        options: q.options,
-        answer: q.answer,
+        question_id: crypto.randomUUID(),
+        quiz_id,
+        question_text: q.content,
+        answer_options: q.options,
+        correct_answer: String.fromCharCode(65 + q.answer), // convertit 0 → 'A', 1 → 'B', ...
         theme: q.theme,
-        difficulty: q.difficulty || 'moyen',
-        quiz_id: quizId, // 🛠️ assigné proprement
+        difficulty: q.difficulty || "moyen"
       });
-
-      await question.save(); // ⚠️ insertMany peut ignorer les validations
+      
+      await question.save();
     }
 
-    return res.status(201).json({
-      message: 'Quiz et questions importés avec succès.',
-      quiz_id: quizId,
+    res.status(201).json({
+      message: `✅ ${questions.length} question(s) ajoutée(s) au quiz ${quiz_id} (titre mis à jour : ${title})`
     });
-  } catch (error) {
-    console.error('Erreur lors de l\'importation du quiz :', error.message);
-    return res.status(500).json({ error: error.message || 'Erreur serveur' });
+  } catch (err) {
+    console.error("❌ Erreur lors de l'import :", err.message);
+    res.status(500).json({ error: err.message || "Erreur serveur" });
   }
-};
-
-module.exports = {
-  importQuestionnaire,
 };

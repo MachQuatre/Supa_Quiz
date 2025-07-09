@@ -1,0 +1,22 @@
+{
+  "quiz_id": "VOTRE_UUID_DE_QUIZ_ICI",
+  "title": "VOTRE_TITRE_ICI",
+  "theme": "VOTRE_THEME_ICI",
+  "difficulty": "facile",
+  "questions": [
+    {
+      "content": "INTITULE_DE_LA_QUESTION_1",
+      "options": ["CHOIX_A", "CHOIX_B", "CHOIX_C", "CHOIX_D"],
+      "answer": 0,
+      "theme": "THEME_DE_LA_QUESTION",
+      "difficulty": "facile"
+    },
+    {
+      "content": "INTITULE_DE_LA_QUESTION_2",
+      "options": ["CHOIX_A", "CHOIX_B", "CHOIX_C", "CHOIX_D"],
+      "answer": 1,
+      "theme": "THEME_DE_LA_QUESTION",
+      "difficulty": "moyen"
+    }
+  ]
+}

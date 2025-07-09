@@ -1,14 +1,19 @@
+const { checkAndAssignBadges } = require("../utils/badgeChecker");
+const UserBadge = require("../models/userBadgeModel");
+const Quiz = require("../models/quizModel");
+
 const UserSession = require("../models/userSessionModel");
 const { v4: uuidv4 } = require("uuid");
 
 exports.createUserSession = async (req, res) => {
   try {
-    const { user_id, game_session_id } = req.body;
+    const { user_id, game_session_id, theme } = req.body;
 
     const session = new UserSession({
       user_session_id: uuidv4(),
       user_id,
       game_session_id,
+      theme
     });
 
     await session.save();
@@ -34,7 +39,31 @@ exports.updateUserSession = async (req, res) => {
       { new: true }
     );
 
-    res.status(200).json({ message: "UserSession mise à jour", session: updated });
+    if (!updated) {
+      return res.status(404).json({ message: "UserSession non trouvée" });
+    }
+
+    // ✅ Calcul du pourcentage de score (chaque bonne réponse = 10 points)
+    const percentScore = Math.round((score / (questions_played.length * 10)) * 100);
+
+    // ✅ Attribution automatique de badges
+    const assignedBadges = await checkAndAssignBadges(
+      {
+        user_id: updated.user_id,
+        score_percent: percentScore,
+        theme: updated.theme || null // optionnel
+      },
+      {
+        UserBadge,
+        Quiz
+      }
+    );
+
+    res.status(200).json({
+      message: "UserSession mise à jour",
+      session: updated,
+      badges_awarded: assignedBadges
+    });
   } catch (error) {
     res.status(500).json({ message: "Erreur mise à jour", error });
   }

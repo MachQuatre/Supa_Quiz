@@ -8,6 +8,7 @@ const userSessionSchema = new mongoose.Schema({
   end_time: { type: Date },
   score: { type: Number, default: 0 },
   completion_percentage: { type: Number, default: 0 },
+  theme: { type: String }, // ✅ nouveau champ ici
   questions_played: [
     {
       question_id: String,
