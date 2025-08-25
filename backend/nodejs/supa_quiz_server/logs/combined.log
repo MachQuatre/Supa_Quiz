@@ -1,0 +1,258 @@
+[2025-04-10 15:01:34] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:05:03] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:05:19] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:09:46] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:26:58] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:32:29] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:36:51] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:36:54] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:40:24] [31merror[39m - ❌ Erreur création session : GameSession validation failed: host_id: Path `host_id` is required.
+[2025-04-10 15:47:37] [32minfo[39m - 🟢 Session QJ6QAV créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-04-10 15:52:37] [33mwarn[39m - ⏱️ Session QJ6QAV automatiquement désactivée
+[2025-04-10 16:44:08] [32minfo[39m - 🟢 Session 3KA512 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-04-10 16:49:08] [33mwarn[39m - ⏱️ Session 3KA512 automatiquement désactivée
+[2025-05-13 10:17:49] [32minfo[39m - 🟢 Session RJSXVT créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 10:22:49] [33mwarn[39m - ⏱️ Session RJSXVT automatiquement désactivée
+[2025-05-13 11:06:02] [32minfo[39m - 🟢 Session JHG58Z créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz quiz001
+[2025-05-13 11:07:02] [33mwarn[39m - ⏱️ Session JHG58Z automatiquement désactivée
+[2025-05-13 11:11:53] [32minfo[39m - 🟢 Session OJOXWZ créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:14:16] [32minfo[39m - 🟢 Session 5O9PU8 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:16:35] [32minfo[39m - 🟢 Session 1C6CN4 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:21:35] [33mwarn[39m - ⏱️ Session 1C6CN4 automatiquement désactivée
+[2025-05-13 11:22:03] [32minfo[39m - 🟢 Session C49W2Q créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:23:29] [32minfo[39m - 🟢 Session G4PEKK créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:27:03] [33mwarn[39m - ⏱️ Session C49W2Q automatiquement désactivée
+[2025-05-13 11:28:29] [33mwarn[39m - ⏱️ Session G4PEKK automatiquement désactivée
+[2025-05-13 11:29:35] [32minfo[39m - 🟢 Session TP57CL créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:39] [32minfo[39m - 🟢 Session CHTJ8M créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:39] [32minfo[39m - 🟢 Session B0OO20 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:39] [32minfo[39m - 🟢 Session G3TBS1 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:40] [32minfo[39m - 🟢 Session GPNUHG créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:40] [32minfo[39m - 🟢 Session LG34DR créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:40] [32minfo[39m - 🟢 Session TQ6SWU créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:40] [32minfo[39m - 🟢 Session DN8I5B créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:40] [32minfo[39m - 🟢 Session GANU8V créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:41] [32minfo[39m - 🟢 Session 2JL3SE créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:41] [32minfo[39m - 🟢 Session P7XWLP créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:41] [32minfo[39m - 🟢 Session 9CSPXH créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:29:41] [32minfo[39m - 🟢 Session JBQRGW créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:32:32] [32minfo[39m - 🟢 Session 8X6V9I créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:33:28] [32minfo[39m - 🟢 Session J66L4V créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 19143ebc-3349-4f5e-84f7-48e9dba976b6
+[2025-05-13 11:33:39] [32minfo[39m - 🟢 Session 63NC4Y créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 19143ebc-3349-4f5e-84f7-48e9dba976b6
+[2025-05-13 11:34:35] [33mwarn[39m - ⏱️ Session TP57CL automatiquement désactivée
+[2025-05-13 11:34:39] [33mwarn[39m - ⏱️ Session CHTJ8M automatiquement désactivée
+[2025-05-13 11:34:39] [33mwarn[39m - ⏱️ Session B0OO20 automatiquement désactivée
+[2025-05-13 11:34:39] [33mwarn[39m - ⏱️ Session G3TBS1 automatiquement désactivée
+[2025-05-13 11:34:40] [33mwarn[39m - ⏱️ Session GPNUHG automatiquement désactivée
+[2025-05-13 11:34:40] [33mwarn[39m - ⏱️ Session LG34DR automatiquement désactivée
+[2025-05-13 11:34:40] [33mwarn[39m - ⏱️ Session TQ6SWU automatiquement désactivée
+[2025-05-13 11:34:40] [33mwarn[39m - ⏱️ Session DN8I5B automatiquement désactivée
+[2025-05-13 11:34:40] [33mwarn[39m - ⏱️ Session GANU8V automatiquement désactivée
+[2025-05-13 11:34:41] [33mwarn[39m - ⏱️ Session 2JL3SE automatiquement désactivée
+[2025-05-13 11:34:41] [33mwarn[39m - ⏱️ Session P7XWLP automatiquement désactivée
+[2025-05-13 11:34:41] [33mwarn[39m - ⏱️ Session 9CSPXH automatiquement désactivée
+[2025-05-13 11:34:41] [33mwarn[39m - ⏱️ Session JBQRGW automatiquement désactivée
+[2025-05-13 11:37:28] [33mwarn[39m - ⏱️ Session 8X6V9I automatiquement désactivée
+[2025-05-13 11:38:24] [33mwarn[39m - ⏱️ Session J66L4V automatiquement désactivée
+[2025-05-13 11:38:35] [33mwarn[39m - ⏱️ Session 63NC4Y automatiquement désactivée
+[2025-05-13 11:42:22] [32minfo[39m - 🟢 Session T10YPT créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz quiz001
+[2025-05-13 11:43:22] [33mwarn[39m - ⏱️ Session T10YPT automatiquement désactivée
+[2025-05-13 11:44:50] [32minfo[39m - 🟢 Session L61X8F créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:44:58] [32minfo[39m - 🟢 Session RWA1S5 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:49:08] [32minfo[39m - 🟢 Session 863VA4 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 11:49:20] [32minfo[39m - 🟢 Session CMF479 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:49:50] [33mwarn[39m - ⏱️ Session L61X8F automatiquement désactivée
+[2025-05-13 11:49:58] [33mwarn[39m - ⏱️ Session RWA1S5 automatiquement désactivée
+[2025-05-13 11:51:12] [32minfo[39m - 🟢 Session OU7GDK créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:54:10] [32minfo[39m - 🟢 Session CV6KWD créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:55:29] [32minfo[39m - 🟢 Session 0L3OXR créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:55:43] [32minfo[39m - 🟢 Session PJ651N créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 0b381559-3ba8-4494-b40a-aacdf09dd547
+[2025-05-13 11:59:10] [33mwarn[39m - ⏱️ Session CV6KWD automatiquement désactivée
+[2025-05-13 12:10:29] [33mwarn[39m - ⏱️ Session 0L3OXR automatiquement désactivée
+[2025-05-13 13:34:03] [33mwarn[39m - ⏱️ Session PJ651N automatiquement désactivée
+[2025-05-13 13:40:27] [32minfo[39m - 🟢 Session CG3R2A créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:40:36] [32minfo[39m - 🟢 Session L3QZLE créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:41:17] [32minfo[39m - 🟢 Session PSSS1I créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz quiz001
+[2025-05-13 13:41:17] [32minfo[39m - 🕒 Clôture auto prévue dans 4 minutes (sursis inclus)
+[2025-05-13 13:45:01] [32minfo[39m - 🟢 Session 3FCV3B créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:45:01] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 13:45:17] [33mwarn[39m - ⏱️ Session PSSS1I désactivée automatiquement après sursis
+[2025-05-13 13:47:16] [32minfo[39m - 🟢 Session VYQYEO créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:47:16] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 13:49:12] [32minfo[39m - 🟢 Session UDJC5W créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:49:12] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 13:54:16] [32minfo[39m - 🟢 Session C54O7A créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:54:16] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 13:54:45] [32minfo[39m - 🟢 Session HOYVFW créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 13:54:45] [32minfo[39m - 🕒 Clôture auto prévue dans 5 minutes (sursis inclus)
+[2025-05-13 13:59:45] [33mwarn[39m - ⏱️ Session HOYVFW désactivée automatiquement après sursis
+[2025-05-13 14:03:01] [33mwarn[39m - ⏱️ Session 3FCV3B désactivée automatiquement après sursis
+[2025-05-13 14:03:41] [32minfo[39m - 🔚 Session UDJC5W clôturée manuellement
+[2025-05-13 14:04:01] [32minfo[39m - 🟢 Session NHOU08 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 14:04:01] [32minfo[39m - 🕒 Clôture auto prévue dans 5 minutes (sursis inclus)
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session 38GXV0 clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session OJOXWZ clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session CMF479 clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session 5O9PU8 clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session L3QZLE clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session 863VA4 clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session CG3R2A clôturée manuellement
+[2025-05-13 14:04:02] [32minfo[39m - 🔚 Session VYQYEO clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session 38GXV0 clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session OJOXWZ clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session 5O9PU8 clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session 863VA4 clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session CMF479 clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session CG3R2A clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session L3QZLE clôturée manuellement
+[2025-05-13 14:04:03] [32minfo[39m - 🔚 Session VYQYEO clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:26] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:04:27] [32minfo[39m - 🔚 Session NHOU08 clôturée manuellement
+[2025-05-13 14:05:24] [32minfo[39m - 🟢 Session 5N021N créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 14:05:24] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
+[2025-05-13 14:05:30] [32minfo[39m - 🟢 Session 20DHB4 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 14:05:30] [32minfo[39m - 🕒 Clôture auto prévue dans 26 minutes (sursis inclus)
+[2025-05-13 14:07:41] [32minfo[39m - 🔚 Session C54O7A clôturée manuellement
+[2025-05-13 14:07:41] [32minfo[39m - 🔚 Session C54O7A clôturée manuellement
+[2025-05-13 14:07:41] [32minfo[39m - 🔚 Session C54O7A clôturée manuellement
+[2025-05-13 14:09:01] [32minfo[39m - ✅ Session NHOU08 déjà clôturée manuellement
+[2025-05-13 14:11:07] [32minfo[39m - 🟢 Session 7ATYK2 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz quiz001
+[2025-05-13 14:11:07] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 14:12:58] [32minfo[39m - 🟢 Session 87VIFY créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 14:12:58] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 14:14:53] [32minfo[39m - 🟢 Session U6ZS5F créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 60fd51fc-94dd-4323-aa09-cd3545be0093
+[2025-05-13 14:14:53] [32minfo[39m - 🕒 Clôture auto prévue dans 18 minutes (sursis inclus)
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:26:56] [32minfo[39m - 🔚 Session 7ATYK2 clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:27:59] [32minfo[39m - 🔚 Session 87VIFY clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:28:56] [32minfo[39m - 🔚 Session 20DHB4 clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:56] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:29:57] [32minfo[39m - 🔚 Session U6ZS5F clôturée manuellement
+[2025-05-13 14:32:53] [32minfo[39m - ✅ Session U6ZS5F déjà clôturée manuellement
+[2025-05-15 13:37:16] [32minfo[39m - 🔚 Session 5N021N clôturée manuellement
+[2025-05-15 13:37:17] [32minfo[39m - 🔚 Session 5N021N clôturée manuellement
+[2025-05-15 13:37:23] [32minfo[39m - 🟢 Session S13G2V créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-05-15 13:37:23] [32minfo[39m - 🕒 Clôture auto prévue dans 8 minutes (sursis inclus)
+[2025-05-15 13:45:23] [33mwarn[39m - ⏱️ Session S13G2V désactivée automatiquement après sursis
+[2025-07-09 09:49:40] [32minfo[39m - 🟢 Session DHWVEP créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-07-09 09:49:40] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
+[2025-07-09 10:37:31] [32minfo[39m - 🟢 Session XLKEH4 créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-07-09 10:37:31] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
+[2025-07-09 10:39:59] [32minfo[39m - 🔚 Session DHWVEP clôturée manuellement
+[2025-07-09 10:39:59] [32minfo[39m - 🔚 Session DHWVEP clôturée manuellement
+[2025-07-09 10:39:59] [32minfo[39m - 🔚 Session DHWVEP clôturée manuellement
+[2025-07-09 11:27:59] [32minfo[39m - 🔚 Session XLKEH4 clôturée manuellement
+[2025-07-09 11:27:59] [32minfo[39m - 🔚 Session XLKEH4 clôturée manuellement
+[2025-07-09 11:27:59] [32minfo[39m - 🔚 Session XLKEH4 clôturée manuellement
+[2025-07-09 11:27:59] [32minfo[39m - 🔚 Session XLKEH4 clôturée manuellement
+[2025-07-09 11:31:09] [32minfo[39m - 🟢 Session T243XP créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-07-09 11:31:09] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
+[2025-07-09 12:21:59] [32minfo[39m - 🔚 Session T243XP clôturée manuellement
+[2025-07-09 12:24:09] [32minfo[39m - ✅ Session T243XP déjà clôturée manuellement
+[2025-07-09 13:52:14] [32minfo[39m - 🟢 Session 9HJ2UM créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-07-09 13:52:14] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
+[2025-07-09 14:45:14] [33mwarn[39m - ⏱️ Session 9HJ2UM désactivée automatiquement après sursis
+[2025-07-09 15:14:41] [32minfo[39m - 🟢 Session NGX7ML créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-07-09 15:14:41] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
+[2025-07-09 16:39:08] [32minfo[39m - 🔚 Session NGX7ML clôturée manuellement
+[2025-07-09 16:39:09] [32minfo[39m - 🔚 Session NGX7ML clôturée manuellement
+[2025-07-09 16:39:15] [32minfo[39m - 🟢 Session 1PJFHZ créée par 28f9f589-4a68-4acb-ba33-50a590bfe5f7 pour le quiz 4a5a5978-b225-4152-9d26-9505bf5dd81b
+[2025-07-09 16:39:15] [32minfo[39m - 🕒 Clôture auto prévue dans 53 minutes (sursis inclus)
