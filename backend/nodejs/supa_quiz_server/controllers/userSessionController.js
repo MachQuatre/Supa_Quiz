@@ -117,3 +117,35 @@ exports.submitAnswer = async (req, res) => {
     res.status(500).json({ message: "Erreur soumission réponse", error });
   }
 };
+
+exports.submitSessionSummary = async (req, res) => {
+  try {
+    const { user_session_id } = req.params;
+    const { questions_played, score, completion_percentage } = req.body;
+
+    const session = await UserSession.findOne({ user_session_id });
+    if (!session) {
+      return res.status(404).json({ message: "Session non trouvée" });
+    }
+
+    session.questions_played = questions_played.map(q => ({
+      ...q,
+      answered: true
+    }));
+    session.score = score;
+    session.completion_percentage = completion_percentage;
+    session.end_time = new Date();
+
+    await session.save();
+
+    res.status(200).json({
+      message: "✅ Résumé de session enregistré",
+      session
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Erreur enregistrement résumé session",
+      error: error.message || error
+    });
+  }
+};

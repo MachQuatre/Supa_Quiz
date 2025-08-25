@@ -31,6 +31,7 @@ app.use('/api/game-sessions', gameSessionRoutes);
 app.use('/api/user-sessions', userSessionRoutes);
 app.use('/api/import', require('./routes/importRoutes'));
 app.use("/api/badges", badgeRoutes);
+app.use("/api/leaderboards", require("./routes/leaderboardRoutes"));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Serveur démarré sur le port ${PORT}`));

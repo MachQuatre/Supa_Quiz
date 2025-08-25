@@ -10,13 +10,15 @@ const userSessionSchema = new mongoose.Schema({
   completion_percentage: { type: Number, default: 0 },
   theme: { type: String }, // ✅ nouveau champ ici
   questions_played: [
-    {
-      question_id: String,
-      answered: Boolean,
-      is_correct: Boolean,
-      response_time_ms: Number,
-    }
-  ]
+  {
+    question_id: String,
+    answered: Boolean,
+    is_correct: Boolean,
+    response_time_ms: Number,
+    score: Number,         // ✅ (si calculé côté Flutter)
+    theme: String          // ✅ pour permettre le leaderboard par thème
+  }
+]
 });
 
 module.exports = mongoose.model("UserSession", userSessionSchema);

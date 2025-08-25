@@ -1,6 +1,9 @@
 const GameSession = require("../models/gameSessionModel");
+const Quiz = require("../models/quizModel");
+const Question = require("../models/questionModel"); // ✅ celui-ci est indispensable
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
+
 
 // Génère un code de session aléatoire
 function generateSessionCode(length = 6) {
@@ -100,5 +103,31 @@ exports.endGameSession = async (req, res) => {
   } catch (error) {
     logger.error(`❌ Erreur clôture session : ${error.message}`);
     res.status(500).json({ message: "Erreur clôture session", error });
+  }
+};
+
+exports.getSessionQuestions = async (req, res) => {
+  try {
+    const { session_id } = req.params;
+
+    const session = await GameSession.findOne({ session_id });
+    if (!session) {
+      return res.status(404).json({ message: "Session introuvable" });
+    }
+
+    const quizId = session.quiz_id;
+    if (!quizId) {
+      return res.status(400).json({ message: "La session n'a pas de quiz associé" });
+    }
+
+    const questions = await Question.find({ quiz_id: quizId });
+
+    res.status(200).json({ quiz_id: quizId, questions });
+  } catch (error) {
+    console.error("❌ Erreur récupération questions :", error);
+    res.status(500).json({
+      message: "Erreur récupération questions",
+      error: error.message || "Erreur inconnue"
+    });
   }
 };

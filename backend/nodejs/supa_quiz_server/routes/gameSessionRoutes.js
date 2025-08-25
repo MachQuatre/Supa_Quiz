@@ -38,4 +38,6 @@ router.get("/active", async (req, res) => {
 
 router.patch('/:session_id/end', gameSessionController.endGameSession);
 
+router.get("/:session_id/questions", gameSessionController.getSessionQuestions);
+
 module.exports = router;
