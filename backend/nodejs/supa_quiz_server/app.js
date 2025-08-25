@@ -5,9 +5,11 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
 const quizRoutes = require("./routes/quizRoutes");
-const sessionRoutes = require("./routes/sessionRoutes");
 const responseRoutes = require("./routes/responseRoutes");
 const questionRoutes = require("./routes/questionRoutes");
+const gameSessionRoutes = require("./routes/gameSessionRoutes");
+const userSessionRoutes = require("./routes/userSessionRoutes");
+const badgeRoutes = require("./routes/badgeRoutes");
 
 const app = express();
 app.use(express.json());
@@ -23,10 +25,13 @@ app.use(cors({
 }));
 app.use("/api/auth", authRoutes);
 app.use("/api/quiz", quizRoutes);
-app.use("/api/sessions", sessionRoutes);
 app.use("/api/responses", responseRoutes);
 app.use("/api/questions", questionRoutes);
-app.use("/api/quiz", quizRoutes);
+app.use('/api/game-sessions', gameSessionRoutes);
+app.use('/api/user-sessions', userSessionRoutes);
+app.use('/api/import', require('./routes/importRoutes'));
+app.use("/api/badges", badgeRoutes);
+app.use("/api/leaderboards", require("./routes/leaderboardRoutes"));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Serveur démarré sur le port ${PORT}`));
