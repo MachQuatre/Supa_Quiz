@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: quiz_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: quiz_app
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ai_service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: quiz_ai
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      # Connexion Mongo (via le nom de service "mongo")
+      MONGO_URI: mongodb://mongo:27017/
+      MONGO_DB: quiz_app
+      HOST: 0.0.0.0
+      PORT: 5001
+      ANALYSIS_WINDOW_DAYS: 7
+    ports:
+      - "5001:5001"
+
+  # Lance le script de seed une fois puis s'arrête
+  mongo_seed:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: quiz_seed
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://mongo:27017/
+      MONGO_DB: quiz_app
+    command: ["python", "seed/seed_mongo.py"]
+    restart: "no"
+
+  node_backend:
+    build:
+      context: ./backend/nodejs/supa_quiz_server
+      dockerfile: Dockerfile
+    container_name: quiz_api
+    restart: unless-stopped
+    depends_on:
+      ai_service:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+    environment:
+      # URL interne du microservice IA
+      PY_AI_URL: http://ai_service:5001
+      # Chaîne Mongo (si ton backend l'utilise)
+      MONGO_URI: mongodb://mongo:27017/
+      MONGO_DB: quiz_app
+      NODE_ENV: development
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    # Si tu as un script start:dev qui regarde PORT
+    command: ["npm", "run", "start"]
+
+  ai_train:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: quiz_ai_train
+    depends_on:
+      mongo:
+        condition: service_healthy
+      mongo_seed:
+        condition: service_completed_successfully
+    environment:
+      MONGO_URI: mongodb://mongo:27017/
+      MONGO_DB: quiz_app
+      MODEL_DIR: model
+      DKT_EPOCHS: 6
+    command: ["python", "train_dkt.py"]
+    restart: "no"
+
+
+volumes:
+  mongo_data:

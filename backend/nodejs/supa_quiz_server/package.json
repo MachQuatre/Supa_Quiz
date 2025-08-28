@@ -1,17 +1,22 @@
 {
-  "dependencies": {
-    "bcrypt": "^5.1.1",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.12.1",
-    "uuid": "^11.1.0",
-    "winston": "^3.17.0"
-  },
+  "name": "supa_quiz_server",
+  "version": "1.0.0",
+  "main": "app.js",
+  "type": "commonjs",
   "scripts": {
-    "setup-db": "node setup.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "dev": "node app.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.2",
+    "mongoose": "^8.3.2",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1",
+    "winston": "^3.17.0"
   }
 }

@@ -1,0 +1,23 @@
+@baseUrlApi = http://localhost:3001
+@baseUrlAi  = http://localhost:5001
+@user_id    = user_1
+@limit      = 5
+@mix_ratio  = 0.5
+
+### Backend Node - Health
+GET {{baseUrlApi}}/health
+
+### Backend Node - Analyse (user)
+GET {{baseUrlApi}}/api/ai/analysis/{{user_id}}
+
+### Backend Node - Recos (mix)
+GET {{baseUrlApi}}/api/ai/recommendations?user_id={{user_id}}&limit={{limit}}&mix_ratio={{mix_ratio}}
+
+### IA Flask - Health
+GET {{baseUrlAi}}/health
+
+### IA Flask - Analyse (user)
+GET {{baseUrlAi}}/analysis/user/{{user_id}}
+
+### IA Flask - Recos (mix)
+GET {{baseUrlAi}}/recommendations?user_id={{user_id}}&limit={{limit}}&mix_ratio={{mix_ratio}}
