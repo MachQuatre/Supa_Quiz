@@ -1,60 +1,91 @@
+// controllers/leaderboardController.js
+const User = require("../models/userModel");
 const UserSession = require("../models/userSessionModel");
 
-// 📌 Leaderboard global + rang utilisateur connecté
-exports.getGlobalLeaderboard = async (req, res) => {
+/* GET /api/leaderboard/themes
+ * -> ["Histoire","Géographie",...]
+ */
+async function getThemes(req, res) {
   try {
-    const user_id = req.user.user_id;
-
-    const leaderboard = await UserSession.aggregate([
-      {
-        $group: {
-          _id: "$user_id",
-          totalScore: { $sum: "$score" }
-        }
-      },
-      { $sort: { totalScore: -1 } }
-    ]);
-
-    const top10 = leaderboard.slice(0, 10);
-
-    const userRank = leaderboard.findIndex(user => user._id === user_id) + 1;
-
-    res.status(200).json({
-      top10,
-      myRank: userRank > 0 ? userRank : null
-    });
-  } catch (err) {
-    res.status(500).json({ message: "Erreur leaderboard global", error: err });
+    const themes = await UserSession.distinct("theme", { theme: { $ne: null } });
+    // tri alpha et nettoyage
+    const list = themes
+      .map((t) => String(t).trim())
+      .filter((t) => t.length > 0)
+      .sort((a, b) => a.localeCompare(b, "fr"));
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ message: "Erreur listing thèmes", error: e.message || e });
   }
-};
+}
 
-// 📌 Leaderboard par thème + rang utilisateur connecté
-exports.getLeaderboardByTheme = async (req, res) => {
+/* GET /api/leaderboard?limit=10
+ * -> top 10 global depuis users.score_total
+ */
+async function getGlobal(req, res) {
   try {
-    const { theme } = req.params;
-    const user_id = req.user.user_id;
+    const limit = Math.min(parseInt(req.query.limit || "10", 10), 50);
+    const rows = await User.find(
+      {},
+      { _id: 0, user_id: 1, username: 1, avatar_choisi: 1, score_total: 1 }
+    )
+      .sort({ score_total: -1, username: 1 })
+      .limit(limit)
+      .lean();
 
-    const leaderboard = await UserSession.aggregate([
+    res.json(
+      rows.map((u) => ({
+        user_id: u.user_id,
+        username: u.username || "Joueur",
+        avatar: u.avatar_choisi || null,
+        totalScore: u.score_total || 0,
+      }))
+    );
+  } catch (e) {
+    res.status(500).json({ message: "Erreur leaderboard global", error: e.message || e });
+  }
+}
+
+/* GET /api/leaderboard/theme/:theme?limit=10
+ * -> top 10 par thème (somme des scores UserSession.theme = :theme)
+ */
+async function getByTheme(req, res) {
+  try {
+    const theme = String(req.params.theme || "").trim();
+    if (!theme) return res.status(400).json({ message: "theme requis" });
+
+    const limit = Math.min(parseInt(req.query.limit || "10", 10), 50);
+
+    const agg = await UserSession.aggregate([
       { $match: { theme } },
+      { $group: { _id: "$user_id", totalScore: { $sum: { $ifNull: ["$score", 0] } } } },
+      { $sort: { totalScore: -1, _id: 1 } },
+      { $limit: limit },
+      // enrichir avec le profil utilisateur
       {
-        $group: {
-          _id: "$user_id",
-          totalScore: { $sum: "$score" }
-        }
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "user_id",
+          as: "user",
+        },
       },
-      { $sort: { totalScore: -1 } }
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          user_id: "$_id",
+          totalScore: 1,
+          username: { $ifNull: ["$user.username", "Joueur"] },
+          avatar: { $ifNull: ["$user.avatar_choisi", null] },
+          _id: 0,
+        },
+      },
     ]);
 
-    const top10 = leaderboard.slice(0, 10);
-
-    const userRank = leaderboard.findIndex(user => user._id === user_id) + 1;
-
-    res.status(200).json({
-      theme,
-      top10,
-      myRank: userRank > 0 ? userRank : null
-    });
-  } catch (err) {
-    res.status(500).json({ message: "Erreur leaderboard par thème", error: err });
+    res.json(agg);
+  } catch (e) {
+    res.status(500).json({ message: "Erreur leaderboard par thème", error: e.message || e });
   }
-};
+}
+
+module.exports = { getThemes, getGlobal, getByTheme };

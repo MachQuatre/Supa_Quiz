@@ -2,7 +2,7 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
-const User = require("../models/userModel");
+const User = require("./models/userModel");
 
 const DB_NAME = "QuizDev";
 const mongoURI = process.env.MONGO_URI || `mongodb://localhost:27017/${DB_NAME}`;
@@ -80,7 +80,9 @@ async function setupDatabase() {
                 email: "admin@supaquiz.com",
                 password: hashedPassword,
                 role: "admin",
-                score_total: 0
+                score_total: 0,
+                avatar_choisi: "assets/avatars/avatar1.png",
+                achievement_state: "aucun"
             });
             console.log("✅ Super Admin créé : admin@supaquiz.com / admin123");
         } else {

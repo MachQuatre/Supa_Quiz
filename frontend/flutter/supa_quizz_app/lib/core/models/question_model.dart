@@ -1,25 +1,49 @@
-class Question {
-  final String question;
+class QuestionModel {
+  final String id;
+  final String text;
   final List<String> options;
-  final int correctAnswerIndex;
+  final String correctAnswer; // 'A', 'B', 'C', 'D'
+  final String difficulty;
+  final String theme;
 
-  Question({
-    required this.question,
+  QuestionModel({
+    required this.id,
+    required this.text,
     required this.options,
-    required this.correctAnswerIndex,
+    required this.correctAnswer,
+    required this.difficulty,
+    required this.theme,
   });
+
+  factory QuestionModel.fromJson(Map<String, dynamic> json) {
+    return QuestionModel(
+      id: json['question_id'],
+      text: json['question_text'],
+      options: List<String>.from(json['answer_options']),
+      correctAnswer: json['correct_answer'],
+      difficulty: json['difficulty'],
+      theme: json['theme'],
+    );
+  }
 }
 
-// Mock data pour le PoC
-final List<Question> questionsMock = [
-  Question(
-    question: "Quel est le plus grand océan du monde ?",
-    options: ["Atlantique", "Pacifique", "Indien", "Arctique"],
-    correctAnswerIndex: 1,
-  ),
-  Question(
-    question: "Quelle est la capitale du Japon ?",
-    options: ["Pékin", "Séoul", "Tokyo", "Bangkok"],
-    correctAnswerIndex: 2,
-  ),
-];
+// 👇 Helpers en dehors de la classe
+int letterToIndex(String letter) {
+  switch (letter.toUpperCase()) {
+    case 'A':
+      return 0;
+    case 'B':
+      return 1;
+    case 'C':
+      return 2;
+    case 'D':
+      return 3;
+    default:
+      return -1;
+  }
+}
+
+String indexToLetter(int index) {
+  const letters = ['A', 'B', 'C', 'D'];
+  return (index >= 0 && index < letters.length) ? letters[index] : '?';
+}

@@ -5,9 +5,8 @@ import (
 	"net/http"
 )
 
-func RegisterAuthRoutes() {
-	http.HandleFunc("/login", controllers.Login)
-	http.HandleFunc("/logout", controllers.Logout)
-	http.HandleFunc("/whoami", controllers.WhoAmI)
-
+func RegisterAuthRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/login", controllers.Login)
+	mux.HandleFunc("/logout", controllers.Logout)
+	mux.HandleFunc("/whoami", controllers.WhoAmI)
 }
