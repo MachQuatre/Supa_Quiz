@@ -93,6 +93,71 @@ services:
     command: ["python", "train_dkt.py"]
     restart: "no"
 
+  quiz-hadoop-master:
+    image: liliasfaxi/spark-hadoop:hv-2.7.2
+    container_name: quiz-hadoop-master
+    hostname: quiz-hadoop-master
+    command: >
+      sh -lc "service ssh start &&
+              [ -d /hadoop/dfs/name/current ] || hdfs namenode -format -force &&
+              /usr/local/hadoop/sbin/start-dfs.sh &&
+              /usr/local/hadoop/sbin/start-yarn.sh &&
+              tail -f /dev/null"
+    volumes:
+      - nn_data:/hadoop/dfs/name
+      - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/config/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro
+      - ./hadoop/config/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro
+      - ./hadoop/config/slaves:/usr/local/hadoop/etc/hadoop/slaves:ro
+      - ./hadoop/jars:/opt/jars                 # artefacts (ndjson, tsv, etc.)
+      - ./hadoop/streaming:/opt/streaming:ro    # scripts mapper/reducer
+    ports:
+      - "51071:50070"
+      - "8088:8088"
+    healthcheck:
+      test: ["CMD-SHELL", "hdfs dfs -ls / >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+
+
+  quiz-hadoop-dn1:
+    image: liliasfaxi/spark-hadoop:hv-2.7.2
+    container_name: quiz-hadoop-dn1
+    hostname: quiz-hadoop-dn1
+    command: >
+      sh -lc "service ssh start &&
+              /usr/local/hadoop/sbin/hadoop-daemon.sh start datanode &&
+              /usr/local/hadoop/sbin/yarn-daemon.sh start nodemanager &&
+              tail -f /dev/null"
+    volumes:
+      - dn1_data:/hadoop/dfs/data
+      - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/config/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro
+      - ./hadoop/config/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro
+
+# quiz-hadoop-dn2
+  quiz-hadoop-dn2:
+    image: liliasfaxi/spark-hadoop:hv-2.7.2
+    container_name: quiz-hadoop-dn2
+    hostname: quiz-hadoop-dn2
+    command: >
+      sh -lc "service ssh start &&
+              /usr/local/hadoop/sbin/hadoop-daemon.sh start datanode &&
+              /usr/local/hadoop/sbin/yarn-daemon.sh start nodemanager &&
+              tail -f /dev/null"
+    volumes:
+      - dn2_data:/hadoop/dfs/data
+      - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+      - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./hadoop/config/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro
+      - ./hadoop/config/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro
+
 
 volumes:
   mongo_data:
+  nn_data:
+  dn1_data:
+  dn2_data:

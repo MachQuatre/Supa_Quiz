@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<configuration>
+  <!-- garde ta réplication et tes dirs -->
+  <property>
+    <name>dfs.replication</name>
+    <value>1</value>
+  </property>
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>file:/hadoop/dfs/name</value>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file:/hadoop/dfs/data</value>
+  </property>
+
+  <!-- << CHANGEMENT DE PORT >> -->
+  <property>
+    <name>dfs.namenode.rpc-address</name>
+    <value>quiz-hadoop-master:8020</value>
+  </property>
+  <!-- Port HTTP de l’UI NN inchangé -->
+  <property>
+    <name>dfs.namenode.http-address</name>
+    <value>quiz-hadoop-master:50070</value>
+  </property>
+</configuration>

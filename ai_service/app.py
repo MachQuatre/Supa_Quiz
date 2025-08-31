@@ -1,36 +1,74 @@
 import os
+import json
+import random
+import datetime as dt
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+
 from recommender import Recommender
 from train_dkt import train as train_dkt
 from metrics import dkt_holdout_metrics
-import random, datetime as dt
 
+# ---- charge les variables d'env avant de les lire ----
+load_dotenv()
+
+app = Flask(__name__)
+
+# ---- sécurité légère (token partagé, optionnel) ----
 AI_SHARED_SECRET = os.getenv("AI_SHARED_SECRET", "")
+# routes autorisées sans token (santé + infos modèle)
+WHITELIST_PATHS = {"/health", "/model/info"}
 
-# Autoriser health sans token. Tout le reste requiert le header X-AI-Token.
-WHITELIST_PATHS = {"/health"}
+# ---- instance unique du moteur IA ----
+rec = Recommender()
 
 @app.before_request
 def _auth_shared_token():
+    # autorise la santé et /model/info sans token
     if request.path in WHITELIST_PATHS:
         return None
+    # si pas de secret configuré -> pas de filtre (dev)
     if not AI_SHARED_SECRET:
-        return None  # token non configuré -> pas de filtre (dev)
+        return None
     token = request.headers.get("X-AI-Token", "")
     if token != AI_SHARED_SECRET:
         return jsonify({"success": False, "error": "unauthorized"}), 401
     return None
 
-
-load_dotenv()
-app = Flask(__name__)
-rec = Recommender()
-
+# ----------------- HEALTH -----------------
 @app.get("/health")
 def health():
     return {"status": "ok"}, 200
 
+# ----------------- MODEL INFO (utile démo) -----------------
+@app.get("/model/info")
+def model_info():
+    meta_path = os.path.join("model", "dkt_meta.json")
+    pt_path = os.path.join("model", "dkt.pt")
+
+    def _mtime(p):
+        try:
+            return int(os.path.getmtime(p))
+        except Exception:
+            return 0
+
+    info = {
+        "model_file": pt_path,
+        "meta_file": meta_path,
+        "exists": os.path.exists(pt_path) and os.path.exists(meta_path),
+        "updated_at_epoch": max(_mtime(pt_path), _mtime(meta_path)),
+        "num_skills": None,
+    }
+    try:
+        if os.path.exists(meta_path):
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+                info["num_skills"] = meta.get("num_skills")
+    except Exception:
+        pass
+    return {"success": True, "model": info}, 200
+
+# ----------------- ANALYSE -----------------
 @app.get("/analysis/user/<user_id>")
 def analysis_user(user_id):
     try:
@@ -39,6 +77,7 @@ def analysis_user(user_id):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# ----------------- ENTRAÎNEMENT DKT -----------------
 @app.post("/train/dkt")
 def train_dkt_endpoint():
     try:
@@ -48,26 +87,35 @@ def train_dkt_endpoint():
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 
+# ----------------- RECOMMANDATIONS -----------------
 @app.get("/recommendations")
 def recommendations():
     try:
         user_id = request.args.get("user_id")
         limit = int(request.args.get("limit", "10"))
         mix_ratio = float(request.args.get("mix_ratio", "0.5"))
-        policy = request.args.get("policy", "heuristic")
+        policy = (request.args.get("policy", "heuristic") or "heuristic").lower()
+
         if not user_id:
             return {"success": False, "error": "user_id requis"}, 400
 
         if policy == "dkt":
             recos = rec.recommended_questions_dkt(user_id, limit=limit, mix_ratio=mix_ratio)
+        elif policy == "bandit":
+            # supporte bandit si dispo, sinon fallback heuristique
+            try:
+                recos = rec.recommended_questions_bandit(user_id, limit=limit, mix_ratio=mix_ratio)
+            except Exception:
+                recos = rec.recommended_questions(user_id, limit=limit, mix_ratio=mix_ratio)
         else:
-            # "heuristic" ou "bandit" si tu gardes l'autre policy
+            # heuristic par défaut
             recos = rec.recommended_questions(user_id, limit=limit, mix_ratio=mix_ratio)
 
         return {"success": True, "user_id": user_id, "count": len(recos), "items": recos}, 200
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 
+# ----------------- METRIQUES DKT -----------------
 @app.get("/metrics/dkt")
 def metrics_dkt():
     try:
@@ -79,7 +127,7 @@ def metrics_dkt():
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 
-# --- NOUVEL ENDPOINT: comparaison de stratégies ---
+# ----------------- COMPARAISON POLICIES -----------------
 @app.get("/compare_policies")
 def compare_policies():
     try:
@@ -88,7 +136,6 @@ def compare_policies():
         if not user_id:
             return {"success": False, "error": "user_id requis"}, 400
 
-        # recos par policy
         items_h = rec.recommended_questions(user_id, limit=limit, mix_ratio=0.5)
         try:
             items_b = rec.recommended_questions_bandit(user_id, limit=limit, mix_ratio=0.5)
@@ -108,21 +155,13 @@ def compare_policies():
             "success": True,
             "user_id": user_id,
             "limit": limit,
-            "summary": {
-                "heuristic": sum_h,
-                "bandit": sum_b,
-                "dkt": sum_d
-            },
-            "items": {
-                "heuristic": items_h,
-                "bandit": items_b,
-                "dkt": items_d
-            }
+            "summary": {"heuristic": sum_h, "bandit": sum_b, "dkt": sum_d},
+            "items": {"heuristic": items_h, "bandit": items_b, "dkt": items_d}
         }, 200
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 
-# --- NOUVEL ENDPOINT: simulation d'une session ---
+# ----------------- SIMULATION SESSION (démo impact) -----------------
 @app.post("/simulate/session")
 def simulate_session():
     """
@@ -148,7 +187,10 @@ def simulate_session():
         if policy == "dkt":
             items = rec.recommended_questions_dkt(user_id, limit=limit, mix_ratio=0.5)
         elif policy == "bandit":
-            items = rec.recommended_questions_bandit(user_id, limit=limit, mix_ratio=0.5)
+            try:
+                items = rec.recommended_questions_bandit(user_id, limit=limit, mix_ratio=0.5)
+            except Exception:
+                items = rec.recommended_questions(user_id, limit=limit, mix_ratio=0.5)
         else:
             items = rec.recommended_questions(user_id, limit=limit, mix_ratio=0.5)
 
@@ -177,7 +219,7 @@ def simulate_session():
                 "question_id": q["question_id"],
                 "is_correct": bool(correct),
                 "response_time": random.randint(1500, 12000),
-                "answered_at": now + dt.timedelta(seconds=30*(i+1))
+                "answered_at": now + dt.timedelta(seconds=30 * (i + 1))
             })
             results.append({
                 "question_id": q["question_id"],
@@ -202,7 +244,80 @@ def simulate_session():
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 
+# ----------------- BOUCLE DE JEU (intégration app) -----------------
+@app.post("/session/start")
+def session_start():
+    """
+    Body JSON: { "user_id": "...", "policy": "dkt|heuristic|bandit", "session_id"?: "..." }
+    Crée (idempotent) la session utilisateur dans usersessions.
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        user_id = data.get("user_id")
+        policy = (data.get("policy") or "dkt").lower()
+        if not user_id:
+            return {"success": False, "error": "user_id requis"}, 400
+
+        now = dt.datetime.utcnow()
+        session_id = data.get("session_id") or f"US_{user_id}_{int(now.timestamp())}"
+
+        if not rec.db.usersessions.find_one({"user_session_id": session_id}):
+            rec.db.usersessions.insert_one({
+                "user_session_id": session_id,
+                "user_id": user_id,
+                "started_at": now,
+                "policy": policy
+            })
+
+        return {"success": True, "session_id": session_id, "policy": policy}, 200
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+@app.post("/response")
+def record_response():
+    """
+    Body JSON: {
+      "user_id": "...", "session_id": "...", "question_id": "...",
+      "is_correct": true/false, "response_time_ms": 5200, "answered_at": ISO8601
+    }
+    Enregistre une réponse dans responses (et crée la session si absente).
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        user_id = data.get("user_id")
+        session_id = data.get("session_id")
+        question_id = data.get("question_id")
+        is_correct = bool(data.get("is_correct"))
+        resp_ms = int(data.get("response_time_ms") or data.get("response_time") or 0)
+        answered_at = data.get("answered_at")
+
+        if not (user_id and session_id and question_id):
+            return {"success": False, "error": "user_id, session_id, question_id requis"}, 400
+
+        # assure l'existence de la session (souple)
+        if not rec.db.usersessions.find_one({"user_session_id": session_id}):
+            rec.db.usersessions.insert_one({
+                "user_session_id": session_id,
+                "user_id": user_id,
+                "started_at": dt.datetime.utcnow(),
+                "policy": data.get("policy") or "dkt"
+            })
+
+        doc = {
+            "session_id": session_id,
+            "question_id": question_id,
+            "is_correct": is_correct,
+            "response_time": resp_ms,
+            "answered_at": dt.datetime.fromisoformat(answered_at) if answered_at else dt.datetime.utcnow()
+        }
+        rec.db.responses.insert_one(doc)
+        return {"success": True, "saved": doc}, 200
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+# ----------------- MAIN -----------------
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "5001"))
-    app.run(host=host, port=port)
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host=host, port=port, debug=debug)
