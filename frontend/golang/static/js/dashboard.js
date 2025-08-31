@@ -1,4 +1,4 @@
-const IP = "10.9.2.101";
+const IP = "localhost";
 const PORT = "3000";
 
 function showSection(id) {
