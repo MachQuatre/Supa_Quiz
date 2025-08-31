@@ -40,6 +40,7 @@ class AuthService {
     required String username,
     required String email,
     required String password,
+
   }) async {
     final uri = Uri.parse("$apiBase/auth/signup");
     final res = await http.post(

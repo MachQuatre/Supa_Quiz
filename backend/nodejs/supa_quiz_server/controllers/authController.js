@@ -47,6 +47,7 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: "Mot de passe incorrect." });
 
+
     const token = jwt.sign(
       { user_id: user.user_id, role: user.role },
       process.env.JWT_SECRET,
@@ -74,7 +75,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// ✅ ton endpoint /auth/me ou /profile
+// endpoint /auth/me ou /profile
 exports.getUserProfile = async (req, res) => {
   try {
     console.log("🟢 ID utilisateur à chercher :", req.user.user_id);

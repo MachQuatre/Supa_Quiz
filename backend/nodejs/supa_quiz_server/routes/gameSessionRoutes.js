@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-
 const GameSession = require("../models/gameSessionModel");
 const Quiz = require("../models/quizModel");
 const Question = require("../models/questionModel");
@@ -27,7 +26,6 @@ router.post("/", requireFn(controller.createGameSession, "createGameSession"));
 router.get("/active", async (req, res) => {
   try {
     const sessions = await GameSession.find({ is_active: true }).lean();
-
     const quizIds = [...new Set(sessions.map(s => s.quiz_id).filter(Boolean))];
     const quizzes = await Quiz.find({ quiz_id: { $in: quizIds } })
       .select({ quiz_id: 1, title: 1 })

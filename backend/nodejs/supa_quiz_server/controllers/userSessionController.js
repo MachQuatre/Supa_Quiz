@@ -44,6 +44,7 @@ async function createUserSession(req, res) {
 
 /* ---------------------- Mettre à jour une UserSession ---------------------- */
 async function updateUserSession(req, res) {
+
   try {
     const { user_session_id } = req.params;
     const { questions_played, score, completion_percentage, end_time } = req.body;
@@ -108,10 +109,12 @@ async function getUserSessions(req, res) {
   } catch (error) {
     res.status(500).json({ message: "Erreur récupération sessions", error });
   }
+
 }
 
 /* ---------------------- Enregistrer une réponse ---------------------- */
 async function submitAnswer(req, res) {
+
   try {
     const { user_session_id } = req.params;
     const { question_id, is_correct, response_time_ms } = req.body;
@@ -121,10 +124,12 @@ async function submitAnswer(req, res) {
       return res.status(404).json({ message: "UserSession introuvable" });
     }
 
+
     session.questions_played.push({
       question_id,
       answered: true,
       is_correct,
+
       response_time_ms,
     });
 
@@ -155,6 +160,7 @@ async function submitSessionSummary(req, res) {
     const { questions_played, score, completion_percentage } = req.body || {};
 
     const session = await UserSession.findOne({ user_session_id }); // ✅ clé correcte
+
     if (!session) {
       return res.status(404).json({ message: "Session non trouvée" });
     }
@@ -430,4 +436,5 @@ module.exports = {
   submitSessionSummary,
   getMySummary,
   endGameSession,
+
 };

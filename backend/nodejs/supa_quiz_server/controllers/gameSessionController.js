@@ -50,6 +50,7 @@ async function createGameSession(req, res) {
 
     setTimeout(async () => {
       const session = await GameSession.findOne({ session_id: code });
+
       if (session && session.is_active) {
         await GameSession.findOneAndUpdate({ session_id: code }, { is_active: false });
         logger.warn(`⏱️ Session ${code} désactivée automatiquement après sursis`);
@@ -59,10 +60,12 @@ async function createGameSession(req, res) {
     }, totalDurationMinutes * 60000);
 
     res.status(201).json({ message: "Session créée", session: newSession });
+
   } catch (error) {
     logger.error(`❌ Erreur création session : ${error.message}`);
     res.status(500).json({ message: "Erreur création session", error });
   }
+
 }
 
 /* ------------------ Rejoindre une session (+ création UserSession) ------------------ */
@@ -94,6 +97,7 @@ async function joinGameSession(req, res) {
 
     // Récupérer la GameSession
     const session = await GameSession.findOne({ session_id });
+
     if (!session || !session.is_active) {
       return res.status(404).json({ message: "Session introuvable ou terminée" });
     }
@@ -177,6 +181,7 @@ async function endGameSession(req, res) {
 
 /* ------------------ Récupérer les questions de la session ------------------ */
 async function getSessionQuestions(req, res) {
+
   try {
     const { session_id } = req.params;
 
@@ -208,3 +213,4 @@ module.exports = {
   endGameSession,
   getSessionQuestions,
 };
+

@@ -251,5 +251,6 @@ class ApiService {
       return list.cast<Map<String, dynamic>>();
     }
     throw Exception("fetchLeaderboardByTheme: ${res.statusCode} ${res.body}");
+
   }
 }

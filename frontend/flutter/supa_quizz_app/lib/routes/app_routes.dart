@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../features/home/screens/login_screen.dart';
 import '../features/home/screens/signup_screen.dart';
 import '../features/home/screens/home_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../features/quiz/screens/quiz_screen.dart';
 import '../features/thematique/screens/theme_selector_screen.dart';
 

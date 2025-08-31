@@ -36,13 +36,9 @@ app.use("/api/badges", badgeRoutes);
 app.use("/api/leaderboards", require("./routes/leaderboardRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/api/leaderboard", require("./routes/leaderboardRoutes"));
 app.use("/api/themes", require("./routes/themeRoutes"));
 app.use("/api/questionnaires", require("./routes/questionnaireRoutes"));
 app.use("/api/thematic-sessions", require("./routes/thematiqueUserSessionRoutes"));
-app.use("/api/themes", require("./routes/themeRoutes"));
-
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Serveur démarré sur le port ${PORT}`));
