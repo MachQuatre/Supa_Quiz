@@ -25,7 +25,21 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tmpl.Execute(w, nil)
+	// On peut injecter le nom d’utilisateur ici si souhaité
+	username := "Super Utilisateur"
+	if cookie, err := r.Cookie("session_email"); err == nil {
+		username = cookie.Value
+	}
+
+	data := struct {
+		Token    string
+		UserName string
+	}{
+		Token:    "", // À remplir si nécessaire
+		UserName: username,
+	}
+
+	err = tmpl.Execute(w, data)
 	if err != nil {
 		log.Printf("Erreur lors de l'exécution du template : %v", err)
 		http.Error(w, "Erreur interne (rendu)", http.StatusInternalServerError)
@@ -40,27 +54,42 @@ func PromoteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser := getCurrentUser(r)
 	email := r.FormValue("email")
+
+	if email == currentUser {
+		http.Error(w, "❌ Vous ne pouvez pas vous promouvoir vous-même", http.StatusForbidden)
+		return
+	}
+
 	collection := config.GetCollection("users")
 	ctx := context.Background()
 
-	filter := bson.M{"email": email}
-	update := bson.M{"$set": bson.M{"role": "super_user"}}
-
-	res, err := collection.UpdateOne(ctx, filter, update)
+	var existing bson.M
+	err := collection.FindOne(ctx, bson.M{"email": email}).Decode(&existing)
 	if err != nil {
-		log.Printf("Erreur MongoDB lors de la promotion : %v", err)
+		http.Error(w, "❌ Utilisateur introuvable", http.StatusNotFound)
+		return
+	}
+
+	role := existing["role"]
+	if role == "admin" {
+		http.Error(w, "❌ Vous ne pouvez pas modifier le rôle d'un administrateur", http.StatusForbidden)
+		return
+	}
+	if role == "super_user" {
+		http.Error(w, "❌ Cet utilisateur est déjà super utilisateur", http.StatusBadRequest)
+		return
+	}
+
+	_, err = collection.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": bson.M{"role": "super_user"}})
+	if err != nil {
 		http.Error(w, "❌ Erreur lors de la promotion", http.StatusInternalServerError)
 		return
 	}
 
-	if res.MatchedCount == 0 {
-		http.Error(w, "❌ Aucun utilisateur trouvé avec cet email", http.StatusNotFound)
-		return
-	}
-
-	log.Printf("✅ Utilisateur %s promu avec succès", email)
-	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("✅ Utilisateur promu avec succès"))
 }
 
 // DemoteUser permet à un admin de rétrograder un super_user
@@ -70,27 +99,42 @@ func DemoteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser := getCurrentUser(r)
 	email := r.FormValue("email")
+
+	if email == currentUser {
+		http.Error(w, "❌ Vous ne pouvez pas vous rétrograder vous-même", http.StatusForbidden)
+		return
+	}
+
 	collection := config.GetCollection("users")
 	ctx := context.Background()
 
-	filter := bson.M{"email": email, "role": "super_user"} // Vérifie qu'on rétrograde bien un super_user
-	update := bson.M{"$set": bson.M{"role": "user"}}
-
-	res, err := collection.UpdateOne(ctx, filter, update)
+	var existing bson.M
+	err := collection.FindOne(ctx, bson.M{"email": email}).Decode(&existing)
 	if err != nil {
-		log.Printf("Erreur MongoDB rétrogradation : %v", err)
-		http.Error(w, "❌ Erreur MongoDB", http.StatusInternalServerError)
+		http.Error(w, "❌ Utilisateur introuvable", http.StatusNotFound)
 		return
 	}
 
-	if res.MatchedCount == 0 {
-		http.Error(w, "❌ Aucun super_user trouvé avec cet email", http.StatusNotFound)
+	role := existing["role"]
+	if role == "admin" {
+		http.Error(w, "❌ Vous ne pouvez pas modifier le rôle d'un administrateur", http.StatusForbidden)
+		return
+	}
+	if role == "user" {
+		http.Error(w, "❌ Cet utilisateur est déjà user", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("🔻 Utilisateur %s rétrogradé à 'user'", email)
-	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+	_, err = collection.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": bson.M{"role": "user"}})
+	if err != nil {
+		http.Error(w, "❌ Erreur lors de la rétrogradation", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("🔻 Utilisateur rétrogradé avec succès"))
 }
 
 // CreateQuiz permet à un super utilisateur ou admin de créer un quiz
@@ -109,12 +153,7 @@ func CreateQuiz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Si tu stockes aussi l’email dans un cookie (sinon remplacer par "admin")
-	email := "admin"
-	emailCookie, err := r.Cookie("session_email")
-	if err == nil {
-		email = emailCookie.Value
-	}
+	email := getCurrentUser(r)
 
 	quiz := models.Quiz{
 		QuizID:        uuid.New().String(),
@@ -127,11 +166,20 @@ func CreateQuiz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	collection := config.GetCollection("quizzes")
-	_, err = collection.InsertOne(context.Background(), quiz)
+	_, err := collection.InsertOne(context.Background(), quiz)
 	if err != nil {
 		http.Error(w, "Erreur enregistrement MongoDB", http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+}
+
+// getCurrentUser récupère l'email depuis le cookie de session
+func getCurrentUser(r *http.Request) string {
+	cookie, err := r.Cookie("session_email")
+	if err != nil {
+		return "admin"
+	}
+	return cookie.Value
 }

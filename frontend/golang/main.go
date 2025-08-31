@@ -12,35 +12,41 @@ import (
 )
 
 func main() {
-	// Connexion Mongo
+	// Connexion MongoDB
 	config.Connect()
-	defer config.Disconnect() // Fermeture propre
+	defer config.Disconnect()
 
-	// 💡 Enregistrement des routes
-	routes.RegisterAuthRoutes()      // <-- Ajouté : login / logout
-	routes.RegisterSuperUserRoutes() // dashboard
+	// Serveur HTTP avec ServeMux
+	mux := http.NewServeMux()
 
-	// Fichiers statiques (JS, CSS...)
+	// 🔧 Enregistrement des routes sur le mux
+	routes.RegisterAuthRoutes(mux)
+	routes.RegisterSuperUserRoutes(mux)
+
+	// 🧾 Fichiers statiques (JS, CSS...)
 	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	mux.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	// Serveur HTTP
-	server := &http.Server{Addr: ":8080"}
+	// Serveur HTTP attaché au mux
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
 
-	// Gestion des signaux OS (CTRL+C)
+	// 🔌 Gestion du CTRL+C / SIGTERM
 	go func() {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 		<-stop
 
-		log.Println("Arrêt du serveur...")
+		log.Println("🛑 Arrêt du serveur...")
 		if err := server.Close(); err != nil {
-			log.Fatalf("Erreur lors de l'arrêt du serveur : %v", err)
+			log.Fatalf("Erreur à l'arrêt : %v", err)
 		}
 	}()
 
-	log.Println("✅ Serveur démarré sur http://localhost:8080")
+	log.Println("✅ Serveur lancé sur http://localhost:8080")
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
-		log.Fatalf("Erreur du serveur : %v", err)
+		log.Fatalf("Erreur serveur : %v", err)
 	}
 }
