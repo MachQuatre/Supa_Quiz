@@ -12,7 +12,12 @@ const userSchema = new mongoose.Schema({
         default: "user"
       },      
     score_total: { type: Number, default: 0 },
-});
+    // ✅ Avatar choisi par l'utilisateur
+    avatar_choisi: {type: String,default: "assets/avatars/avatar1.png"},
+
+    // ✅ Un seul champ texte pour l’état des achievements
+    achievement_state: { type: [String], default: [] }
+    }, { timestamps: true });
 
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) return next();

@@ -2,13 +2,27 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+func init() {
+	godotenv.Load()
+
+	ip := os.Getenv("IP_ADDRESS")
+	port := os.Getenv("PORT_MONGO")
+	if ip == "" || port == "" {
+		log.Fatal("❌ Variables IP_ADDRESS ou PORT_MONGO manquantes dans le .env")
+	}
+
+}
 
 var (
 	DB     *mongo.Database
@@ -22,7 +36,9 @@ func Connect() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		clientOptions := options.Client().ApplyURI("mongodb://10.9.11.14:27017") // IP Mongo interne
+		clientOptions := options.Client().ApplyURI(
+			fmt.Sprintf("mongodb://%s:%s", os.Getenv("IP_ADDRESS"), os.Getenv("PORT_MONGO")),
+		)
 		var err error
 		client, err = mongo.Connect(ctx, clientOptions)
 		if err != nil {

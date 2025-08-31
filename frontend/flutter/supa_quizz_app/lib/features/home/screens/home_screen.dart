@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/auth_service.dart';
+import '../../home/screens/login_screen.dart';
 import '../../leaderboard/screens/leaderboard_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../quiz/screens/play_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -11,8 +15,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    PlayScreen(),
+  final List<Widget> _screens = const [
+    PlayScreen(), // Page Jouer
     LeaderboardScreen(),
     ProfileScreen(),
   ];
@@ -23,9 +27,31 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text(
           'Quiz App',
-          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
+        actions: [
+          // 🔒 Déconnexion (conservé)
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Déconnexion',
+            onPressed: () async {
+              await AuthService.logout();
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            },
+          ),
+
+          // ❌ Clé (Quiz Privé) retirée comme demandé
+          // if (_currentIndex == 0)
+          //   IconButton(
+          //     icon: const Icon(Icons.vpn_key),
+          //     tooltip: 'Quiz Privé',
+          //     onPressed: () { ... },
+          //   ),
+        ],
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -33,11 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentIndex,
         selectedItemColor: Colors.purple,
         unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.play_arrow),
