@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Supa Quiz — Demo IA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Inter, system-ui, Arial, sans-serif; margin: 24px; background:#0b1020; color:#e9eef7; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; }
+    .card { background:#121a33; border-radius:16px; padding:16px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .controls { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap: wrap; }
+    select, button { background:#0f1530; color:#e9eef7; border:1px solid #2a3b75; border-radius:10px; padding:8px 12px; cursor:pointer; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; margin-right:6px; }
+    .revision { background:#1f6feb33; border:1px solid #1f6feb; }
+    .challenge { background:#d2992233; border:1px solid #d29922; }
+    .fill { background:#30363d; border:1px solid #484f58; }
+    .cold_start { background:#23863633; border:1px solid #238636; }
+    h2,h3 { margin: 8px 0 12px; }
+    a { color:#8ab4ff; text-decoration:none; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+    .pill { font-size:12px; opacity:0.8 }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .kpi { display:inline-block; padding:6px 10px; border-radius:10px; background:#0f1530; border:1px solid #2a3b75; margin-right:8px; margin-bottom:8px; }
+    .ok { color:#7ee787; }
+    .warn { color:#d29922; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h2>⚡ Supa Quiz — Démo IA (Analysis + Recommendations)</h2>
+  <div class="controls">
+    <label>User:</label>
+    <select id="userSel">
+      <option>user_1</option>
+      <option>user_2</option>
+      <option>user_3</option>
+    </select>
+
+    <label>Policy:</label>
+    <select id="policySel">
+      <option value="heuristic">heuristic</option>
+      <option value="bandit">bandit</option>
+      <option value="dkt" selected>dkt</option>
+    </select>
+
+    <label>Limit:</label>
+    <select id="limitSel">
+      <option>5</option><option>8</option><option selected>12</option>
+    </select>
+
+    <button id="runBtn">Run</button>
+    <span class="pill">API: <a href="/health" target="_blank">/health</a></span>
+  </div>
+
+  <div class="row">
+    <div class="card" style="flex:2; min-width:340px;">
+      <h3>Analyse par thème (taux & maîtrise)</h3>
+      <canvas id="chart" height="150"></canvas>
+    </div>
+    <div class="card" style="flex:1; min-width:320px;">
+      <h3>Recommandations</h3>
+      <div id="recoList"></div>
+    </div>
+  </div>
+
+  <!-- ======= IMPACT & MODÈLE ======= -->
+  <div class="row" style="margin-top:16px;">
+    <div class="card" style="flex:2; min-width:340px;">
+      <h3>Impact & Modèle</h3>
+      <div class="controls">
+        <button id="btnCompare">Comparer policies</button>
+        <button id="btnSimu">Simuler 8 questions</button>
+        <button id="btnMetrics">Métriques DKT</button>
+        <span id="impactMsg" class="pill"></span>
+      </div>
+      <div id="kpis" class="mono" style="margin-bottom:8px;"></div>
+      <pre id="compareBox" class="mono" style="white-space:pre-wrap;background:#0f1530;padding:12px;border-radius:12px;min-height:90px;"></pre>
+    </div>
+  </div>
+
+  <script>
+    const api = location.origin; // http://localhost:3001
+    const userSel = document.getElementById('userSel');
+    const policySel = document.getElementById('policySel');
+    const limitSel = document.getElementById('limitSel');
+    const runBtn = document.getElementById('runBtn');
+    const recoList = document.getElementById('recoList');
+    const compareBox = document.getElementById('compareBox');
+    const impactMsg = document.getElementById('impactMsg');
+    const kpis = document.getElementById('kpis');
+
+    let chart;
+
+    function badge(type) {
+      const cls = ({"revision":"revision","challenge":"challenge","fill":"fill","cold_start":"cold_start"})[type] || "fill";
+      return `<span class="badge ${cls}">${type}</span>`;
+    }
+
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+    async function postJSON(url, body) {
+      const r = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+    const pct = (x)=> (x==null ? "—" : Math.round(x*100));
+
+    async function run() {
+      const user = userSel.value;
+      const policy = policySel.value;
+      const limit = limitSel.value;
+
+      const analysis = await fetchJSON(`${api}/api/ai/analysis/${user}`);
+      const recos = await fetchJSON(`${api}/api/ai/recommendations?user_id=${user}&limit=${limit}&policy=${policy}`);
+
+      // Chart data
+      const labels = analysis.themes.map(t => t.theme);
+      const success = analysis.themes.map(t => Math.round((t.success_rate||0)*100));
+      const mastery = analysis.themes.map(t => Math.round((t.mastery||0)*100));
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      chart?.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Taux de réussite (%)', data: success },
+            { label: 'Maîtrise (%)', data: mastery }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { y: { beginAtZero: true, max: 100 } }
+        }
+      });
+
+      // Reco list
+      recoList.innerHTML = recos.items.map(q => `
+        <div style="margin-bottom:12px;">
+          ${badge(q.reason_type || 'fill')}
+          <strong>${q.theme}</strong> — ${q.difficulty} <br/>
+          <span class="pill">${q.title || q.question_id}</span><br/>
+          <span class="pill">${q.reason || ''}</span>
+        </div>
+      `).join('') || "<em>Aucune reco</em>";
+    }
+
+    // ===== Impact: métriques DKT =====
+    async function showDktMetrics() {
+      const user = userSel.value;
+      try {
+        const r = await fetchJSON(`${api}/api/ai/metrics/dkt?user_id=${encodeURIComponent(user)}`);
+        const m = r.metrics || {};
+        kpis.innerHTML = `
+          <span class="kpi">logloss: <b>${m.logloss ?? "—"}</b></span>
+          <span class="kpi">brier: <b>${m.brier ?? "—"}</b></span>
+          <span class="kpi">accuracy@0.5: <b class="${(m["accuracy@0.5"]>=0.6?"ok":"warn")}">${m["accuracy@0.5"] ?? "—"}</b></span>
+          <span class="kpi">sweet-spot 55–75%: <b>${pct(m.pct_in_0.55_0.75)}%</b></span>
+          <span class="kpi">n: <b>${m.n ?? 0}</b></span>
+        `;
+      } catch (e) {
+        kpis.textContent = "Métriques DKT indisponibles (modèle non entraîné ?)";
+      }
+    }
+
+    // ===== Impact: comparaison de policies =====
+    async function comparePolicies() {
+      const user = userSel.value;
+      const limit = limitSel.value;
+      const r = await fetchJSON(`${api}/api/ai/compare?user_id=${encodeURIComponent(user)}&limit=${limit}`);
+      const s = r.summary || {};
+      const fmt = (o)=>`avg_p=${o.avg_p ?? "—"} | pct_0.55-0.75=${o.pct_0.55_0.75 ?? "—"} | n=${o.n ?? 0} | thèmes=${o.themes ?? 0}`;
+      compareBox.textContent =
+        `Heuristic -> ${fmt(s.heuristic || {})}
+        Bandit    -> ${fmt(s.bandit || {})}
+        DKT       -> ${fmt(s.dkt || {})}`;
+    }
+
+    // ===== Impact: simulation d'une session =====
+    async function simulateSession() {
+      const user = userSel.value;
+      const policy = policySel.value;
+      const limit = 8;
+      const r = await postJSON(`${api}/api/ai/simulate`, { user_id: user, policy, limit });
+      const ok = (r.results||[]).filter(x=>x.is_correct).length;
+      impactMsg.textContent = `Session ${r.session_id} (${policy}): ${ok}/${(r.results||[]).length} correctes.`;
+      await run();       // refresh chart & recos
+      await showDktMetrics(); // refresh métriques après insertion
+    }
+
+    // Listeners
+    runBtn.addEventListener('click', async () => { await run(); await showDktMetrics(); });
+    document.getElementById('btnCompare').addEventListener('click', comparePolicies);
+    document.getElementById('btnSimu').addEventListener('click', simulateSession);
+    document.getElementById('btnMetrics').addEventListener('click', showDktMetrics);
+
+    // Auto-run
+    (async () => { await run(); await showDktMetrics(); })();
+  </script>
+</body>
+</html>

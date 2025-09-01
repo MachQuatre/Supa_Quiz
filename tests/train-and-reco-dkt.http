@@ -1,0 +1,14 @@
+@ai = http://localhost:5001
+@api = http://localhost:3001
+@user_id = user_1
+
+### Train DKT (8 epochs)
+POST {{ai}}/train/dkt
+Content-Type: application/json
+
+{
+  "epochs": 8
+}
+
+### Recos via DKT (backend Node)
+GET {{api}}/api/ai/recommendations?user_id={{user_id}}&limit=8&mix_ratio=0.5&policy=dkt
