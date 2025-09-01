@@ -1,6 +1,16 @@
 {
+  "name": "supa_quiz_server",
+  "version": "1.0.0",
+  "main": "app.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js"
+  },
   "dependencies": {
+    "axios": "^1.7.0",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -10,9 +20,5 @@
     "multer": "^2.0.2",
     "uuid": "^11.1.0",
     "winston": "^3.17.0"
-  },
-  "scripts": {
-    "setup-db": "node setup.js",
-    "start": "node app.js"
   }
 }
