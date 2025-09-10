@@ -7,6 +7,7 @@ class ApiService {
   // ⚠️ Sur Android émulateur : "http://10.0.2.2:3000/api"
   static const String baseUrl = "http://localhost:3000/api";
 
+  static String? _token;
   // ------------------ helpers ------------------
   static Uri _uri(String path) => Uri.parse("$baseUrl$path");
 
@@ -23,6 +24,10 @@ class ApiService {
     if (jsonBody) headers["Content-Type"] = "application/json";
     if (token != null) headers["Authorization"] = "Bearer $token";
     return headers;
+  }
+
+  static void setToken(String? token) {
+    _token = token;
   }
 
   // ------------------ QUIZZES ------------------
@@ -251,6 +256,85 @@ class ApiService {
       return list.cast<Map<String, dynamic>>();
     }
     throw Exception("fetchLeaderboardByTheme: ${res.statusCode} ${res.body}");
+  }
 
+  static Map<String, String> _jsonHeaders([Map<String, String>? extra]) {
+    final h = <String, String>{'Content-Type': 'application/json'};
+    if (_token != null && _token!.isNotEmpty) {
+      h['Authorization'] = 'Bearer $_token';
+    }
+    if (extra != null) h.addAll(extra);
+    return h;
+  }
+
+  /// Compat: certains écrans l’attendaient
+  static Future<Map<String, String>> authHeaders({bool jsonBody = true}) async {
+    // Utilise désormais AuthService.token() (SharedPreferences)
+    return _authHeaders(jsonBody: jsonBody);
+  }
+
+  static Uri _resolve(String path) {
+    if (path.startsWith('http')) return Uri.parse(path);
+    final base = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final p = path.startsWith('/') ? path : '/$path';
+    return Uri.parse('$base$p');
+  }
+
+  // --- Méthodes HTTP statiques ---
+  static Future<http.Response> get(
+    String path, {
+    Map<String, String>? headers,
+    bool jsonBody = false, // GET sans Content-Type par défaut
+  }) async {
+    final base = await _authHeaders(jsonBody: jsonBody);
+    final merged = {...base, if (headers != null) ...headers};
+    return http.get(_resolve(path), headers: merged);
+  }
+
+  static Future<http.Response> post(
+    String path, {
+    Object? body,
+    Map<String, String>? headers,
+    bool jsonBody = true, // POST en JSON par défaut
+  }) async {
+    final base = await _authHeaders(jsonBody: jsonBody);
+    final merged = {...base, if (headers != null) ...headers};
+    return http.post(
+      _resolve(path),
+      headers: merged,
+      body: body is String ? body : jsonEncode(body),
+    );
+  }
+
+  static Future<http.Response> put(
+    String path, {
+    Object? body,
+    Map<String, String>? headers,
+    bool jsonBody = true,
+  }) async {
+    final base = await _authHeaders(jsonBody: jsonBody);
+    final merged = {...base, if (headers != null) ...headers};
+    return http.put(
+      _resolve(path),
+      headers: merged,
+      body: body is String ? body : jsonEncode(body),
+    );
+  }
+
+  static Future<http.Response> delete(
+    String path, {
+    Object? body,
+    Map<String, String>? headers,
+    bool jsonBody = true,
+  }) async {
+    final base = await _authHeaders(jsonBody: jsonBody);
+    final merged = {...base, if (headers != null) ...headers};
+    return http.delete(
+      _resolve(path),
+      headers: merged,
+      body: body is String ? body : jsonEncode(body),
+    );
   }
 }

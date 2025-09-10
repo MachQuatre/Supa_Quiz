@@ -1,13 +1,14 @@
-import os
+import os, hmac, csv
 import json
 import random
 import datetime as dt
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 
 from recommender import Recommender
 from train_dkt import train as train_dkt
 from metrics import dkt_holdout_metrics
+from collections import defaultdict
 
 # ---- charge les variables d'env avant de les lire ----
 load_dotenv()
@@ -18,20 +19,25 @@ app = Flask(__name__)
 AI_SHARED_SECRET = os.getenv("AI_SHARED_SECRET", "")
 # routes autorisées sans token (santé + infos modèle)
 WHITELIST_PATHS = {"/health", "/model/info"}
+WORDCOUNTS_PATH = os.getenv("WORDCOUNTS_PATH", "/data/word_counts.tsv")
 
 # ---- instance unique du moteur IA ----
 rec = Recommender()
 
 @app.before_request
 def _auth_shared_token():
-    # autorise la santé et /model/info sans token
+    # /health passe sans token
     if request.path in WHITELIST_PATHS:
         return None
-    # si pas de secret configuré -> pas de filtre (dev)
+
+    # si pas configuré → bypass (dev)
     if not AI_SHARED_SECRET:
+        app.logger.warning("[auth] AI_SHARED_SECRET non défini → bypass")
         return None
+
     token = request.headers.get("X-AI-Token", "")
-    if token != AI_SHARED_SECRET:
+    if not hmac.compare_digest(token, AI_SHARED_SECRET):
+        app.logger.warning("[auth] X-AI-Token invalide (present=%s len=%s)", bool(token), len(token) if token else 0)
         return jsonify({"success": False, "error": "unauthorized"}), 401
     return None
 
@@ -92,28 +98,87 @@ def train_dkt_endpoint():
 def recommendations():
     try:
         user_id = request.args.get("user_id")
-        limit = int(request.args.get("limit", "10"))
-        mix_ratio = float(request.args.get("mix_ratio", "0.5"))
-        policy = (request.args.get("policy", "heuristic") or "heuristic").lower()
-
         if not user_id:
-            return {"success": False, "error": "user_id requis"}, 400
+            return {"success": False, "error": "bad_request", "reason": "missing_user_id"}, 400
 
-        if policy == "dkt":
-            recos = rec.recommended_questions_dkt(user_id, limit=limit, mix_ratio=mix_ratio)
-        elif policy == "bandit":
-            # supporte bandit si dispo, sinon fallback heuristique
-            try:
-                recos = rec.recommended_questions_bandit(user_id, limit=limit, mix_ratio=mix_ratio)
-            except Exception:
-                recos = rec.recommended_questions(user_id, limit=limit, mix_ratio=mix_ratio)
-        else:
-            # heuristic par défaut
-            recos = rec.recommended_questions(user_id, limit=limit, mix_ratio=mix_ratio)
+        # Params sûrs (bornes et types)
+        try:
+            limit = int(request.args.get("limit", "20"))
+        except ValueError:
+            limit = 20
+        limit = max(1, min(limit, 50))  # borne 1..50
 
-        return {"success": True, "user_id": user_id, "count": len(recos), "items": recos}, 200
-    except Exception as e:
-        return {"success": False, "error": str(e)}, 500
+        try:
+            mix_ratio = float(request.args.get("mix_ratio", "0.5"))
+        except ValueError:
+            mix_ratio = 0.5
+        mix_ratio = max(0.0, min(mix_ratio, 1.0))  # borne 0..1
+
+        policy = (request.args.get("policy", "heuristic") or "heuristic").lower()
+        used_policy = policy
+        fallback_used = None
+
+        recos = []
+
+        def _heuristic():
+            return rec.recommended_questions(user_id, limit=limit, mix_ratio=mix_ratio)
+
+        try:
+            if policy == "dkt":
+                recos = rec.recommended_questions_dkt(user_id, limit=limit, mix_ratio=mix_ratio)
+            elif policy == "bandit":
+                try:
+                    recos = rec.recommended_questions_bandit(user_id, limit=limit, mix_ratio=mix_ratio)
+                except Exception as e_bandit:
+                    app.logger.warning("bandit failed for user_id=%s → fallback heuristic: %s", user_id, e_bandit)
+                    used_policy = "heuristic"
+                    fallback_used = "heuristic"
+                    recos = _heuristic()
+            else:
+                recos = _heuristic()
+        except Exception as e_policy:
+            # Fallback global vers heuristic (si pas déjà essayé)
+            if policy != "heuristic":
+                app.logger.warning("%s failed for user_id=%s → fallback heuristic: %s", policy, user_id, e_policy)
+                used_policy = "heuristic"
+                fallback_used = "heuristic"
+                try:
+                    recos = _heuristic()
+                except Exception as e_h:
+                    msg = str(e_h).lower()
+                    if "user" in msg and ("not found" in msg or "unknown" in msg or "absent" in msg):
+                        app.logger.info("unknown user_id=%s → return empty list", user_id)
+                        return {"success": True, "user_id": user_id, "count": 0, "items": [], "policy_used": used_policy, "fallback_used": fallback_used, "_note": "unknown_user"}, 200
+                    app.logger.exception("heuristic ultimate failure for user_id=%s", user_id)
+                    return {"success": False, "error": "internal_error"}, 500
+            else:
+                msg = str(e_policy).lower()
+                if "user" in msg and ("not found" in msg or "unknown" in msg or "absent" in msg):
+                    app.logger.info("unknown user_id=%s → return empty list", user_id)
+                    return {"success": True, "user_id": user_id, "count": 0, "items": [], "policy_used": used_policy}, 200
+                app.logger.exception("policy heuristic failed for user_id=%s", user_id)
+                return {"success": False, "error": "internal_error"}, 500
+
+        # Normalisation / vide = succès
+        if not isinstance(recos, list):
+            recos = list(recos) if recos is not None else []
+        if not recos:
+            app.logger.info("no recos for user_id=%s → return empty", user_id)
+
+        payload = {
+            "success": True,
+            "user_id": user_id,
+            "count": len(recos),
+            "items": recos,
+            "policy_used": used_policy,
+        }
+        if fallback_used:
+            payload["fallback_used"] = fallback_used
+        return payload, 200
+
+    except Exception:
+        app.logger.exception("recommendations fatal error")
+        return {"success": False, "error": "internal_error"}, 500
 
 # ----------------- METRIQUES DKT -----------------
 @app.get("/metrics/dkt")
@@ -314,6 +379,55 @@ def record_response():
         return {"success": True, "saved": doc}, 200
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
+
+def _load_word_stats(theme: str):
+    stats = defaultdict(lambda: {"1": 0, "0": 0})
+    if not os.path.exists(WORDCOUNTS_PATH):
+        return None
+
+    with open(WORDCOUNTS_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) != 4:
+                continue
+            word, outcome, th, count = parts[0], parts[1], parts[2], parts[3]
+            try:
+                count = int(count)
+            except ValueError:
+                continue
+            if theme.lower() != "all" and th.lower() != theme.lower():
+                continue
+            if outcome not in ("0", "1"):
+                continue
+            stats[word][outcome] += count
+
+    rows = []
+    for w, c in stats.items():
+        total = c["1"] + c["0"]
+        if total < 5:  # anti-bruit
+            continue
+        ratio = (c["1"] + 1.0) / (c["0"] + 1.0)  # lissage
+        rows.append({"word": w, "ok": c["1"], "ko": c["0"], "total": total, "ratio": ratio})
+
+    # Top pro-succès (ratio élevé) et pro-échec (ratio faible)
+    rows_sorted = sorted(rows, key=lambda r: r["ratio"], reverse=True)
+    success_top = rows_sorted[:25]
+    failure_top = list(reversed(rows_sorted))[:25]  # plus faibles ratios
+    return {"success_top": success_top, "failure_top": failure_top}
+
+@app.get("/api/words")
+def api_words():
+    theme = (request.args.get("theme") or "all").strip()
+    data = _load_word_stats(theme)
+    if data is None:
+        return jsonify({"success": False, "error": f"TSV not found at {WORDCOUNTS_PATH}"}), 404
+    return jsonify({"success": True, "theme": theme, **data})
+
+@app.get("/dashboard/words")
+def dashboard_words():
+    theme = (request.args.get("theme") or "all").strip()
+    return render_template("words.html", theme=theme)
+
 
 # ----------------- MAIN -----------------
 if __name__ == "__main__":
