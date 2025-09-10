@@ -27,16 +27,19 @@ services:
       mongo:
         condition: service_healthy
     environment:
-      # Connexion Mongo (via le nom de service "mongo")
       MONGO_URI: mongodb://mongo:27017/
       MONGO_DB: quiz_app
       HOST: 0.0.0.0
       PORT: 5001
       ANALYSIS_WINDOW_DAYS: 7
+      # 🔐 même secret que Node (tu peux réutiliser celui présent dans ai_service/.env)
+      AI_SHARED_SECRET: ${AI_SHARED_SECRET:-mpi2023}
     ports:
       - "5001:5001"
+    volumes:
+      - ./hadoop/jars:/data:ro   # ⟵ rend word_counts.tsv visible pour Flask
 
-  # Lance le script de seed une fois puis s'arrête
+  # ⛔️ Ne pas lancer par défaut (profils)
   mongo_seed:
     build:
       context: ./ai_service
@@ -50,11 +53,11 @@ services:
       MONGO_DB: quiz_app
     command: ["python", "seed/seed_mongo.py"]
     restart: "no"
+    profiles: ["seed"]
 
   node_backend:
     build:
       context: ./backend/nodejs/supa_quiz_server
-      dockerfile: Dockerfile
     container_name: quiz_api
     restart: unless-stopped
     depends_on:
@@ -63,18 +66,19 @@ services:
       mongo:
         condition: service_healthy
     environment:
-      # URL interne du microservice IA
+      # IA interne au réseau docker
       PY_AI_URL: http://ai_service:5001
-      # Chaîne Mongo (si ton backend l'utilise)
-      MONGO_URI: mongodb://mongo:27017/
+      AI_SHARED_SECRET: ${AI_SHARED_SECRET:-mpi2023}
+      # Mongo
+      MONGO_URI: mongodb://mongo:27017/quiz_app
       MONGO_DB: quiz_app
       NODE_ENV: development
-      PORT: 3001
+      PORT: 3001  # le conteneur écoute en 3001 (Dockerfile), on publie 3000 dehors
     ports:
-      - "3001:3001"
-    # Si tu as un script start:dev qui regarde PORT
+      - "3000:3001"  # 👉 http://localhost:3000 côté navigateur
     command: ["npm", "run", "start"]
 
+  # ⛔️ Ne pas lancer par défaut (profils)
   ai_train:
     build:
       context: ./ai_service
@@ -83,8 +87,6 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-      mongo_seed:
-        condition: service_completed_successfully
     environment:
       MONGO_URI: mongodb://mongo:27017/
       MONGO_DB: quiz_app
@@ -92,6 +94,31 @@ services:
       DKT_EPOCHS: 6
     command: ["python", "train_dkt.py"]
     restart: "no"
+    profiles: ["train"]
+
+  go_admin:
+    build:
+      context: ./frontend/golang
+      dockerfile: Dockerfile
+    container_name: quiz_admin
+    depends_on:
+      mongo:
+        condition: service_healthy
+      node_backend:
+        condition: service_started
+    environment:
+      # 👉 cible du backend applicatif Node (interne au réseau Docker)
+      BACKEND_HOST: node_backend
+      BACKEND_PORT: "3001"
+
+      # 👉 Mongo pour l’admin Go
+      MONGO_URI: mongodb://mongo:27017/quiz_app
+      MONGO_DB: quiz_app
+
+      # (optionnel) si ton serveur Go lit un port via env, évite "PORT" pour ne pas confondre
+      # ADMIN_PORT: "8080"
+    ports:
+      - "8080:8080"
 
   quiz-hadoop-master:
     image: liliasfaxi/spark-hadoop:hv-2.7.2
@@ -99,28 +126,19 @@ services:
     hostname: quiz-hadoop-master
     command: >
       sh -lc "service ssh start &&
-              [ -d /hadoop/dfs/name/current ] || hdfs namenode -format -force &&
               /usr/local/hadoop/sbin/start-dfs.sh &&
               /usr/local/hadoop/sbin/start-yarn.sh &&
               tail -f /dev/null"
     volumes:
-      - nn_data:/hadoop/dfs/name
+      - ./hadoop/jars:/opt/jars
+      - ./hadoop/streaming:/opt/streaming
       - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
       - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
       - ./hadoop/config/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro
       - ./hadoop/config/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro
-      - ./hadoop/config/slaves:/usr/local/hadoop/etc/hadoop/slaves:ro
-      - ./hadoop/jars:/opt/jars                 # artefacts (ndjson, tsv, etc.)
-      - ./hadoop/streaming:/opt/streaming:ro    # scripts mapper/reducer
     ports:
-      - "51071:50070"
-      - "8088:8088"
-    healthcheck:
-      test: ["CMD-SHELL", "hdfs dfs -ls / >/dev/null 2>&1 || exit 1"]
-      interval: 20s
-      timeout: 5s
-      retries: 20
-
+      - "9870:9870"   # HDFS NameNode UI
+      - "8088:8088"   # YARN ResourceManager UI
 
   quiz-hadoop-dn1:
     image: liliasfaxi/spark-hadoop:hv-2.7.2
@@ -138,8 +156,7 @@ services:
       - ./hadoop/config/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro
       - ./hadoop/config/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro
 
-# quiz-hadoop-dn2
-  quiz-hadoop-dn2:
+  quiz-hadoop-dn2:   # 👈 bien aligné avec dn1, PAS dedans
     image: liliasfaxi/spark-hadoop:hv-2.7.2
     container_name: quiz-hadoop-dn2
     hostname: quiz-hadoop-dn2
@@ -154,7 +171,6 @@ services:
       - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
       - ./hadoop/config/yarn-site.xml:/usr/local/hadoop/etc/hadoop/yarn-site.xml:ro
       - ./hadoop/config/mapred-site.xml:/usr/local/hadoop/etc/hadoop/mapred-site.xml:ro
-
 
 volumes:
   mongo_data:

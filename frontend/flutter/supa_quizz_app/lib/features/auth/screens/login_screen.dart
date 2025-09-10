@@ -18,11 +18,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text;
 
     try {
-      final response = await ApiService.post("/auth/login", {
-        "email": email,
-        "password": password,
-      });
-
+      final response = await ApiService.post(
+        "/auth/login",
+        body: {
+          "email": email,
+          "password": password,
+        },
+      );
       final token = response["token"];
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString("token", token);

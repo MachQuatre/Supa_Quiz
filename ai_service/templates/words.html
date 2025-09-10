@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dashboard Hadoop — Mots corrélés au succès/échec</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, -apple-system, Arial; margin: 20px; }
+      header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+      h1 { margin: 0; font-size: 1.25rem; }
+      .row { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 16px; }
+      @media (min-width: 1100px) { .row { grid-template-columns: 1fr 1fr; } }
+      .card { border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);}
+      .hint { color:#6b7280; font-size: .9rem; }
+      select, button { padding: 8px 10px; border-radius: 10px; border: 1px solid #d1d5db; }
+      .toolbar { display:flex; gap: 8px; align-items:center; }
+      canvas { width:100%; height: 420px; }
+      footer { margin-top: 10px; color:#9ca3af; font-size: .85rem; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Dashboard Hadoop — Mots corrélés</h1>
+      <div class="toolbar">
+        <label for="theme">Filtre thème :</label>
+        <input id="theme" type="text" placeholder="all, science, sport..." value="{{ theme }}" />
+        <button id="apply">Appliquer</button>
+      </div>
+    </header>
+
+    <p class="hint">Source : <code>/data/word_counts.tsv</code> généré par Hadoop Streaming (mapper/reducer Python).
+      Modifie le thème (ex: <code>science</code>) puis “Appliquer”.</p>
+
+    <div class="row">
+      <div class="card">
+        <h3>Top termes “pro-succès”</h3>
+        <canvas id="chartSuccess"></canvas>
+      </div>
+      <div class="card">
+        <h3>Top termes “pro-échec”</h3>
+        <canvas id="chartFailure"></canvas>
+      </div>
+    </div>
+
+    <footer>Astuce : régénère le TSV avec ton script Hadoop puis rafraîchis la page.</footer>
+
+    <script>
+      const qs = (s)=>document.querySelector(s);
+      const themeInput = qs('#theme');
+      const go = qs('#apply');
+
+      go.addEventListener('click', () => {
+        const t = themeInput.value.trim() || 'all';
+        const url = new URL(window.location.href);
+        url.searchParams.set('theme', t);
+        window.location.href = url.toString();
+      });
+
+      async function loadData() {
+        const url = new URL('/api/words', window.location.origin);
+        const theme = (new URL(window.location.href)).searchParams.get('theme') || 'all';
+        url.searchParams.set('theme', theme);
+        const res = await fetch(url);
+        const js = await res.json();
+        if(!js.success){
+          alert(js.error || 'Données indisponibles (TSV manquant)');
+          return {success_top:[], failure_top:[]};
+        }
+        return js;
+      }
+
+      function makeBar(id, items, label) {
+        const ctx = document.getElementById(id).getContext('2d');
+        const labels = items.map(x => x.word);
+        const data = items.map(x => x.ratio);
+        const totals = items.map(x => x.total);
+        return new Chart(ctx, {
+          type: 'bar',
+          data: { labels, datasets: [{ label, data }] },
+          options: {
+            responsive: true,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => {
+                    const r = items[ctx.dataIndex];
+                    return `${label}: ${ctx.raw.toFixed(2)} (N=${r.total}, OK=${r.ok}, KO=${r.ko})`;
+                  }
+                }
+              },
+              legend: { display: true }
+            },
+            scales: {
+              y: { beginAtZero: true, title: { display: true, text: 'ratio ( (OK+1)/(KO+1) )' } },
+              x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
+            }
+          }
+        });
+      }
+
+      (async () => {
+        const { success_top, failure_top } = await loadData();
+        makeBar('chartSuccess', success_top, 'Ratio pro-succès');
+        makeBar('chartFailure', failure_top, 'Ratio pro-échec');
+      })();
+    </script>
+  </body>
+</html>
