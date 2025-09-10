@@ -1,5 +1,4 @@
 const path = require("path");
-
 require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/db");
@@ -13,7 +12,6 @@ const gameSessionRoutes = require("./routes/gameSessionRoutes");
 const userSessionRoutes = require("./routes/userSessionRoutes");
 const badgeRoutes = require("./routes/badgeRoutes");
 const aiRoutes = require("./routes/aiRoutes");
-const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -42,7 +40,8 @@ app.use("/api/themes", require("./routes/themeRoutes"));
 app.use("/api/questionnaires", require("./routes/questionnaireRoutes"));
 app.use("/api/thematic-sessions", require("./routes/thematiqueUserSessionRoutes"));
 app.use("/api/ai", aiRoutes);
-app.use(express.static(path.join(__dirname, "public"))); // <--- AJOUT
+app.use(express.static(path.join(__dirname, "public")));
+app.use('/api/training', require('./routes/trainingRoutes'));
 
 const PORT = process.env.PORT || 3000;
 app.get("/health", (req, res) => res.json({ ok: true }));

@@ -14,14 +14,13 @@ import (
 )
 
 func init() {
-	godotenv.Load()
+	// Charge .env si présent, mais ne crash pas si des variables manquent :
+	// on mettra des valeurs par défaut côté code.
+	_ = godotenv.Load()
 
-	ip := os.Getenv("IP_ADDRESS")
-	port := os.Getenv("PORT")
-	if ip == "" || port == "" {
-		log.Fatal("❌ Variables IP_ADDRESS ou PORT_MONGO manquantes dans le .env")
+	if os.Getenv("BACKEND_HOST") == "" || os.Getenv("BACKEND_PORT") == "" {
+		log.Println("⚠️  BACKEND_HOST/BACKEND_PORT non définis - utilisation des valeurs par défaut (localhost:3000)")
 	}
-
 }
 
 // Structure pour la réponse de l'API Node
@@ -52,17 +51,35 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	body := map[string]string{"email": email, "password": password}
 	jsonBody, _ := json.Marshal(body)
 
+	// 👉 Cible désormais le backend Node via BACKEND_HOST/BACKEND_PORT
+	backendHost := os.Getenv("BACKEND_HOST")
+	if backendHost == "" {
+		backendHost = "localhost"
+	}
+	backendPort := os.Getenv("BACKEND_PORT")
+	if backendPort == "" {
+		backendPort = "3000"
+	}
+
 	resp, err := http.Post(
-		fmt.Sprintf("http://%s:%s/api/auth/login", os.Getenv("IP_ADDRESS"), os.Getenv("PORT")),
+		fmt.Sprintf("http://%s:%s/api/auth/login", backendHost, backendPort),
 		"application/json",
 		bytes.NewBuffer(jsonBody),
 	)
-
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
+		log.Printf("login: erreur d'appel API: %v", err)
 		showLoginError(w, "Connexion refusée par le serveur distant")
 		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Lis le corps pour un éventuel message d'erreur côté API
+		b, _ := io.ReadAll(resp.Body)
+		log.Printf("login: status=%d body=%s", resp.StatusCode, string(b))
+		showLoginError(w, "Identifiants invalides ou accès refusé")
+		return
+	}
 
 	respBody, _ := io.ReadAll(resp.Body)
 	var res AuthResponse

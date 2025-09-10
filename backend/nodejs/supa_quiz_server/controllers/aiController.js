@@ -31,6 +31,16 @@ const http = axios.create({
   headers: AI_SHARED_SECRET ? { "X-AI-Token": AI_SHARED_SECRET } : {}
 });
 
+// ajout après la création de l'instance axios "http"
+http.interceptors.request.use((config) => {
+  config.headers = config.headers || {};
+  if (AI_SHARED_SECRET) {
+    config.headers['X-AI-Token'] = AI_SHARED_SECRET;
+  }
+  return config;
+});
+
+
 // --- helpers retry ---
 async function callWithRetry(fn) {
   let lastErr;

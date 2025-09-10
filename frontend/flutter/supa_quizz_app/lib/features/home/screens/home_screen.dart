@@ -30,6 +30,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.black,
         actions: [
+          // 🎓 Bouton Entrainement
+          IconButton(
+            icon: const Icon(Icons.school),
+            tooltip: 'Entrainement',
+            onPressed: () {
+              Navigator.pushNamed(context, '/training');
+            },
+          ),
+
           // 🔒 Déconnexion (conservé)
           IconButton(
             icon: const Icon(Icons.logout),

@@ -13,7 +13,7 @@ const UserSession = require(userSessionPath);
 // charge .env si présent
 try { require("dotenv").config({ path: path.join(__dirname, "..", ".env") }); } catch (_) {}
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017/QuizDev";
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017/quiz_app";
 
 function toIntSafe(v){ const n = Number(v); return Number.isFinite(n) ? Math.trunc(n) : 0; }
 

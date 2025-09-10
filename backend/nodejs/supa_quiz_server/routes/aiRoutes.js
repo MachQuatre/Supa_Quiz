@@ -1,12 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const aiController = require("../controllers/aiController");
+// routes/aiRoutes.js
+const router = require('express').Router();
+const ai = require('../controllers/aiController');
 
-router.get("/analysis/:user_id", aiController.getUserAnalysis);
-router.get("/recommendations", aiController.getRecommendations);
-router.get("/metrics/dkt", aiController.getDktMetrics);
-router.get("/compare", aiController.getComparePolicies);
-router.post("/simulate", aiController.postSimulateSession);
-router.get("/prewarm", aiController.prewarmRecommendations);
+// Petit health-check (facultatif)
+router.get('/health', (req, res) => res.json({ success: true, status: 'ok' }));
+
+// ⚠️ Ici on matche exactement tes NOMS DE FONCTIONS et PARAMS
+router.get('/analysis/user/:user_id', ai.getAnalysis);
+router.get('/recommendations', ai.getRecommendations);
+router.post('/recommendations/prewarm', ai.prewarmRecommendations);
 
 module.exports = router;
