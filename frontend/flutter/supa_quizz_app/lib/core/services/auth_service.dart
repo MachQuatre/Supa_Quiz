@@ -2,14 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-// IMPORTANT : ajuste l'URL si tu es sur un émulateur Android -> 10.0.2.2
-const String apiBase = "http://localhost:3000/api";
+import 'api_service.dart'; // ✅ source de vérité pour la base URL
 
 class AuthService {
   /// Connexion
   static Future<Map<String, dynamic>> login(
       String email, String password) async {
-    final uri = Uri.parse("$apiBase/auth/login");
+    final uri = Uri.parse("${ApiService.baseUrl}/auth/login");
     final res = await http.post(
       uri,
       headers: {"Content-Type": "application/json"},
@@ -27,7 +26,6 @@ class AuthService {
         email: email,
         avatar:
             data["avatar_choisi"]?.toString() ?? "assets/avatars/avatar1.png",
-        // on passe tel quel (peut être List, String, null) -> encodé proprement plus bas
         achievement: data["achievement_state"],
       );
     }
@@ -40,9 +38,8 @@ class AuthService {
     required String username,
     required String email,
     required String password,
-
   }) async {
-    final uri = Uri.parse("$apiBase/auth/signup");
+    final uri = Uri.parse("${ApiService.baseUrl}/auth/signup");
     final res = await http.post(
       uri,
       headers: {"Content-Type": "application/json"},
@@ -144,13 +141,12 @@ class AuthService {
   }
 
   /// ⚠️ Compat : renvoie la **chaîne JSON** stockée ("[]", "[\"A1\"]", …)
-  /// Garde la signature originale pour ne rien casser.
   static Future<String?> achievement() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString("achievement_state");
   }
 
-  /// ✅ Nouveau helper pratique : renvoie **List<String>** décodée
+  /// ✅ Helper pratique : renvoie **List<String>** décodée
   static Future<List<String>> achievementCodes() async {
     final sp = await SharedPreferences.getInstance();
     final raw = sp.getString("achievement_state");
@@ -165,7 +161,6 @@ class AuthService {
   }
 
   /// Récupère toutes les infos en une fois
-  /// - on renvoie la List décodée + la chaîne brute pour compat
   static Future<Map<String, dynamic>> getSession() async {
     final sp = await SharedPreferences.getInstance();
     final achRaw = sp.getString("achievement_state") ?? "[]";
