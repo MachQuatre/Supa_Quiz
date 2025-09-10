@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const User = require("./models/userModel");
 
-const DB_NAME = "QuizDev";
+const DB_NAME = process.env.MONGO_DB  || "quiz_app";
 const mongoURI = process.env.MONGO_URI || `mongodb://localhost:27017/${DB_NAME}`;
 
 // ✅ Toutes les collections en minuscule

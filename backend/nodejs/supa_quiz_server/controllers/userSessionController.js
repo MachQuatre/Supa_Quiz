@@ -1,3 +1,4 @@
+const axios = require("axios");
 const { checkAndAssignBadges } = require("../utils/badgeChecker");
 const UserBadge = require("../models/userBadgeModel");
 const Quiz = require("../models/quizModel");
@@ -9,6 +10,29 @@ const {
   addSessionScoreAndUnlock,
   recomputeTotalAndUnlock,
 } = require("../utils/scoreAchievements.service");
+
+/* ---------------------- IA client (préwarm) ---------------------- */
+const PY_AI_URL = process.env.PY_AI_URL || "http://ai_service:5001";
+const AI_SHARED_SECRET = process.env.AI_SHARED_SECRET || "";
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 8000);
+
+const httpAI = axios.create({
+  baseURL: PY_AI_URL,
+  timeout: AI_TIMEOUT_MS,
+});
+httpAI.interceptors.request.use((config) => {
+  config.headers = config.headers || {};
+  if (AI_SHARED_SECRET) config.headers["X-AI-Token"] = AI_SHARED_SECRET;
+  return config;
+});
+
+/** fire-and-forget: préchauffe les recos IA pour un utilisateur */
+function prewarmRecommendations(userId, { limit = 20, policy = "dkt", mix_ratio = 0.5 } = {}) {
+  if (!userId) return;
+  httpAI
+    .get("/recommendations", { params: { user_id: String(userId), limit, policy, mix_ratio } })
+    .catch(() => {}); // silencieux: ne bloque jamais le flux utilisateur
+}
 
 /* ---------------------- Créer une UserSession ---------------------- */
 async function createUserSession(req, res) {
@@ -35,6 +59,10 @@ async function createUserSession(req, res) {
     });
 
     await session.save();
+
+    // préchauffe les recos pour l'utilisateur
+    prewarmRecommendations(session.user_id);
+
     return res.status(201).json({ message: "UserSession démarrée", session });
   } catch (e) {
     console.error("createUserSession error:", e);
@@ -81,6 +109,9 @@ async function updateUserSession(req, res) {
       { UserBadge, Quiz }
     );
 
+    // préchauffe les recos (après mise à jour)
+    prewarmRecommendations(updated.user_id);
+
     return res.status(200).json({
       message: "UserSession mise à jour",
       session: updated,
@@ -124,12 +155,10 @@ async function submitAnswer(req, res) {
       return res.status(404).json({ message: "UserSession introuvable" });
     }
 
-
     session.questions_played.push({
       question_id,
       answered: true,
       is_correct,
-
       response_time_ms,
     });
 
@@ -139,6 +168,9 @@ async function submitAnswer(req, res) {
     session.completion_percentage = totalAnswered * 10; // 10 questions => 100%
 
     await session.save();
+
+    // préchauffe les recos immédiatement après la réponse
+    prewarmRecommendations(session.user_id);
 
     res.status(200).json({
       message: "✅ Réponse enregistrée",
@@ -186,6 +218,9 @@ async function submitSessionSummary(req, res) {
 
     // Recompute total (idempotent)
     const { total, newlyUnlocked } = await recomputeTotalAndUnlock(session.user_id);
+
+    // préchauffe les recos pour la prochaine session
+    prewarmRecommendations(session.user_id);
 
     return res.status(200).json({
       message: "✅ Résumé de session enregistré",
@@ -410,6 +445,9 @@ async function endGameSession(req, res) {
       unlocked: out?.newlyUnlocked,
     });
 
+    // préchauffe les recos pour la prochaine session
+    prewarmRecommendations(userId);
+
     return res.json({
       ok: true,
       session_score: toNum(updated.score) ?? 0,
@@ -425,8 +463,6 @@ async function endGameSession(req, res) {
   }
 }
 
-
-
 /* ---------------------- EXPORT UNIQUE ---------------------- */
 module.exports = {
   createUserSession,
@@ -436,5 +472,4 @@ module.exports = {
   submitSessionSummary,
   getMySummary,
   endGameSession,
-
 };
