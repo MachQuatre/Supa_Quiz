@@ -1,15 +1,34 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 
 class ApiService {
-  // ⚠️ Sur Android émulateur : "http://10.0.2.2:3000/api"
-  static const String baseUrl = "http://localhost:3000/api";
+  // ------------------------------------------------------------------
+  // Base URL unique, fiable :
+  // - En Web : même origine -> "/api"
+  // - Override possible avec --dart-define=API_BASE_URL (avec ou sans /api)
+  // - En natif (dev) : fallback Android émulateur "http://10.0.2.2:3000/api"
+  // ------------------------------------------------------------------
+  static String get baseUrl {
+    const override = String.fromEnvironment('API_BASE_URL');
+    if (override.isNotEmpty) return _normalizeBase(override);
+    if (kIsWeb) return '/api';
+    return 'http://10.0.2.2:3000/api';
+  }
+
+  static String _normalizeBase(String v) {
+    var s = v.trim();
+    if (s.endsWith('/')) s = s.substring(0, s.length - 1);
+    if (!s.endsWith('/api')) s = '$s/api';
+    return s;
+  }
 
   static String? _token;
+
   // ------------------ helpers ------------------
-  static Uri _uri(String path) => Uri.parse("$baseUrl$path");
+  static Uri _uri(String path) => _resolve(path);
 
   static final RegExp _uuidV4 = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
@@ -57,17 +76,13 @@ class ApiService {
   }
 
   /// ✅ Résumé profil (score total cumulé + 10 dernières parties)
-  /// Appelle toujours l’API avec ?user_id=<me.user_id> pour éviter tout souci d’auth middleware.
   static Future<Map<String, dynamic>> fetchMySummary() async {
     final headers = await _authHeaders(jsonBody: false);
-
-    // Source de vérité pour l'user_id
     final me = await getMe();
     final userId = me["user_id"];
     if (userId == null) {
       throw Exception("getMe() n'a pas renvoyé user_id");
     }
-
     final url = _uri("/user-sessions/me/summary?user_id=$userId");
     final res = await http.get(url, headers: headers);
 
@@ -245,12 +260,14 @@ class ApiService {
   }
 
   static Future<List<Map<String, dynamic>>> fetchLeaderboardByTheme(
-      String theme,
-      {int limit = 10}) async {
+    String theme, {
+    int limit = 10,
+  }) async {
     final headers = await _authHeaders(jsonBody: false);
     final res = await http.get(
-        _uri("/leaderboard/theme/${Uri.encodeComponent(theme)}?limit=$limit"),
-        headers: headers);
+      _uri("/leaderboard/theme/${Uri.encodeComponent(theme)}?limit=$limit"),
+      headers: headers,
+    );
     if (res.statusCode == 200) {
       final List list = jsonDecode(res.body);
       return list.cast<Map<String, dynamic>>();
@@ -275,14 +292,12 @@ class ApiService {
 
   static Uri _resolve(String path) {
     if (path.startsWith('http')) return Uri.parse(path);
-    final base = baseUrl.endsWith('/')
-        ? baseUrl.substring(0, baseUrl.length - 1)
-        : baseUrl;
+    final base = baseUrl; // déjà normalisée, finit par /api
     final p = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$base$p');
   }
 
-  // --- Méthodes HTTP statiques ---
+  // --- Méthodes HTTP statiques génériques ---
   static Future<http.Response> get(
     String path, {
     Map<String, String>? headers,
