@@ -10,10 +10,29 @@ from models.dkt import DKT
 
 # ----------------------- Config -----------------------
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-DB_NAME   = os.getenv("MONGO_DB", "quiz_app")
-WINDOW    = int(os.getenv("ANALYSIS_WINDOW_DAYS", "7"))  # pour les stats récentes
+DB_NAME_ENV = os.getenv("MONGO_DB", "").strip()
+WINDOW = int(os.getenv("ANALYSIS_WINDOW_DAYS", "7"))  # fenêtre “récent” en jours
 
-# ----------------------- Helpers (nouveaux) -----------------------
+# ----------------------- Connexion DB (robuste) -----------------------
+def _connect_db():
+    """
+    Retourne (client, db) en gérant les 3 cas:
+      1) MONGO_DB non vide  -> utilise ce nom
+      2) MONGO_URI avec /db -> utilise client.get_default_database()
+      3) fallback           -> 'quiz_app'
+    """
+    client = MongoClient(MONGO_URI)
+    if DB_NAME_ENV:
+        return client, client[DB_NAME_ENV]
+    try:
+        db = client.get_default_database()
+        if db is not None:
+            return client, db
+    except Exception:
+        pass
+    return client, client["quiz_app"]
+
+# ----------------------- Helpers -----------------------
 def _as_dt(x):
     """Parse des dates hétérogènes en datetime (UTC) ou None."""
     if isinstance(x, dt.datetime):
@@ -21,7 +40,6 @@ def _as_dt(x):
     if x is None:
         return None
     s = str(x)
-    # ISO 8601 best-effort
     try:
         return dt.datetime.fromisoformat(s.replace("Z", ""))
     except Exception:
@@ -112,6 +130,23 @@ def _recent_seen_question_ids(db, user_id: str, last_events: int = 20) -> set:
             s.add(ev["question_id"])
     return s
 
+def _recent_mastered_question_ids(db, user_id: str, correct_min: int = 2, window_events: int = 6) -> set:
+    """
+    Questions répondues correctement au moins `correct_min` fois
+    sur les `window_events` derniers événements (Game + Training).
+    => On les considère ‘maîtrisées récemment’ et on les exclut.
+    """
+    events = list(iter_user_history(db, user_id))
+    events.sort(key=lambda e: (e.get("ts") or dt.datetime.min), reverse=True)
+    counts = {}
+    for ev in events[:window_events]:
+        qid = ev.get("question_id")
+        if not qid:
+            continue
+        if ev.get("correct") is True:
+            counts[qid] = counts.get(qid, 0) + 1
+    return {qid for qid, c in counts.items() if c >= correct_min}
+
 def _diversify(items, max_per_theme: int = 2):
     """Ré-ordonne/filtre pour éviter 5 items du même thème à la suite."""
     out, count = [], {}
@@ -139,8 +174,7 @@ class Recommender:
     """
 
     def __init__(self):
-        self.client = MongoClient(MONGO_URI)
-        self.db = self.client[DB_NAME]
+        self.client, self.db = _connect_db()
 
     # ----------------- ANALYSE PAR THEME -----------------
     def user_theme_stats(self, user_id: str) -> List[Dict[str, Any]]:
@@ -157,9 +191,8 @@ class Recommender:
         prev_from   = now - dt.timedelta(days=2 * WINDOW)
         prev_to     = recent_from
 
-        # 1) Charger/normaliser l'historique
         evs = list(iter_user_history(self.db, user_id))
-        # 2) Accumulateurs
+
         g_attempts, g_correct, g_time = {}, {}, {}
         r_attempts, r_correct = {}, {}
         p_attempts, p_correct = {}, {}
@@ -168,7 +201,7 @@ class Recommender:
             theme = e.get("theme")
             if not theme:
                 continue
-            ts = e.get("ts") or now  # si absent, on considère maintenant
+            ts = e.get("ts") or now
             corr = bool(e.get("correct", False))
             rt = e.get("response_time_ms")
 
@@ -179,13 +212,13 @@ class Recommender:
             if isinstance(rt, (int, float)):
                 g_time[theme] = g_time.get(theme, 0.0) + float(rt)
 
-            # Fenêtre récente
+            # Récente
             if recent_from <= ts <= now:
                 r_attempts[theme] = r_attempts.get(theme, 0) + 1
                 if corr:
                     r_correct[theme] = r_correct.get(theme, 0) + 1
 
-            # Fenêtre précédente
+            # Précédente
             if prev_from < ts <= prev_to:
                 p_attempts[theme] = p_attempts.get(theme, 0) + 1
                 if corr:
@@ -201,11 +234,11 @@ class Recommender:
 
             attempts_r = int(r_attempts.get(t, 0))
             correct_r  = int(r_correct.get(t, 0))
-            sr_recent  = (correct_r / attempts_r) if attempts_r > 0 else None
+            sr_recent  = (attempts_r and (correct_r / attempts_r)) or None
 
             attempts_p = int(p_attempts.get(t, 0))
             correct_p  = int(p_correct.get(t, 0))
-            sr_prev    = (correct_p / attempts_p) if attempts_p > 0 else None
+            sr_prev    = (attempts_p and (correct_p / attempts_p)) or None
 
             trend = None
             if sr_recent is not None and sr_prev is not None:
@@ -249,16 +282,20 @@ class Recommender:
         - Révision: cible la difficulté adaptée au niveau courant
         - Challenge: un cran au-dessus si dispo
         - Exclut les questions déjà vues (Game + Training)
+        - Exclut les questions maîtrisées récemment (>= 2 bonnes réponses parmi les 6 derniers events)
+        - Évite 'cold_start' si l'utilisateur a déjà de l'historique
         """
         stats = self.user_theme_stats(user_id)
         theme_by_name = {s["theme"]: s for s in stats}
         ordered_themes = list(theme_by_name.keys())
 
-        # Construire l'ensemble des questions déjà vues (fusionné)
+        # Construire l'ensemble des questions à exclure
         seen = _all_seen_question_ids(self.db, user_id)
+        seen |= _recent_mastered_question_ids(self.db, user_id, correct_min=2, window_events=6)
+        recent_seen = _recent_seen_question_ids(self.db, user_id, last_events=20)
+        seen |= recent_seen  # anti-répétition courte
 
-        pool_revision = []
-        pool_challenge = []
+        pool_revision, pool_challenge = [], []
 
         def harder(d: str) -> str:
             return {"facile": "moyen", "moyen": "difficile"}.get(d, "difficile")
@@ -295,13 +332,25 @@ class Recommender:
                 q["target_difficulty"] = hd
                 pool_challenge.append(q)
 
-        # Cas “nouveau joueur”
+        # Cas de repli : aucune question en révision/challenge
         if not pool_revision and not pool_challenge:
-            tmp = list(self.db.questions.find({"difficulty": "facile"}, {"_id": 0}).limit(limit * 2))
+            # Si l'utilisateur a déjà un historique, éviter 'cold_start'
+            has_history = len(seen) > 0
+            base_query = {"difficulty": "facile"}
+            if has_history:
+                played_themes = {e.get("theme") for e in iter_user_history(self.db, user_id) if e.get("theme")}
+                if played_themes:
+                    base_query = {"difficulty": "facile", "theme": {"$in": list(played_themes)}}
+
+            tmp = [q for q in self.db.questions.find(base_query, {"_id": 0}) if q["question_id"] not in seen]
             random.shuffle(tmp)
             for q in tmp[:limit]:
-                q["reason_type"] = "cold_start"
-                q["reason"] = "Nouveau joueur : démarrage en facile."
+                if has_history:
+                    q["reason_type"] = "revision"
+                    q["reason"] = "Révision douce sur vos thèmes joués."
+                else:
+                    q["reason_type"] = "cold_start"
+                    q["reason"] = "Nouveau joueur : démarrage en facile."
                 q["theme_mastery"] = None
                 q["target_difficulty"] = "facile"
             return tmp[:limit]
@@ -335,15 +384,11 @@ class Recommender:
                 uniq[qid] = q
         recos = list(uniq.values())
 
-        # Anti-répétition sur les derniers événements (utile si 'seen' est purgé un jour)
-        recent_seen = _recent_seen_question_ids(self.db, user_id, last_events=20)
-        recos = [q for q in recos if q["question_id"] not in recent_seen]
-
         # Diversité par thème
         recos = _diversify(recos, max_per_theme=2)
         return recos[:limit]
 
-    # ----------------- DKT (inchangé sauf robustesse) ------------------
+    # ----------------- DKT ------------------
     _dkt_loaded = False
     _dkt_model = None
     _dkt_meta = None
@@ -429,7 +474,6 @@ class Recommender:
         seq = self._user_sequence_for_dkt(user_id)
         p_vec = self._dkt_predict_vector(seq)  # size K
 
-        # Construire mapping question -> score par proximité à cible
         K = self._dkt_meta["num_skills"]
         idx_of = self._dkt_meta["skill2idx"]  # str->idx
 
