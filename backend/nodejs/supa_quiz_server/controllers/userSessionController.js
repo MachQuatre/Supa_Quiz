@@ -1,4 +1,5 @@
 const axios = require("axios");
+const mongoose = require("mongoose"); // ⬅️ pour accès direct à la collection
 const { checkAndAssignBadges } = require("../utils/badgeChecker");
 const UserBadge = require("../models/userBadgeModel");
 const Quiz = require("../models/quizModel");
@@ -34,6 +35,25 @@ function prewarmRecommendations(userId, { limit = 20, policy = "dkt", mix_ratio 
     .catch(() => {}); // silencieux: ne bloque jamais le flux utilisateur
 }
 
+/* ---------------------- helpers locaux ---------------------- */
+const pick = (obj, ...keys) => {
+  for (const k of keys) if (obj && obj[k] !== undefined) return obj[k];
+  return undefined;
+};
+const toNum = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const toBool = (v) => {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    return ["true", "1", "yes", "ok", "correct", "vrai"].includes(s);
+  }
+  return false;
+};
+
 /* ---------------------- Créer une UserSession ---------------------- */
 async function createUserSession(req, res) {
   try {
@@ -51,7 +71,7 @@ async function createUserSession(req, res) {
     }
 
     const session = new UserSession({
-      user_session_id: uuidv4(),   // reste un UUID public
+      user_session_id: uuidv4(),   // ✅ reste un UUID public
       user_id: String(rawUserId),  // ✅ toujours l'UUID users.user_id
       game_session_id,
       quiz_id,
@@ -72,7 +92,6 @@ async function createUserSession(req, res) {
 
 /* ---------------------- Mettre à jour une UserSession ---------------------- */
 async function updateUserSession(req, res) {
-
   try {
     const { user_session_id } = req.params;
     const { questions_played, score, completion_percentage, end_time } = req.body;
@@ -125,7 +144,6 @@ async function updateUserSession(req, res) {
   }
 }
 
-
 /* ---------------------- Lister les sessions d’un utilisateur ---------------------- */
 async function getUserSessions(req, res) {
   try {
@@ -140,12 +158,10 @@ async function getUserSessions(req, res) {
   } catch (error) {
     res.status(500).json({ message: "Erreur récupération sessions", error });
   }
-
 }
 
-/* ---------------------- Enregistrer une réponse ---------------------- */
+/* ---------------------- Enregistrer une réponse (mode GameSession) ---------------------- */
 async function submitAnswer(req, res) {
-
   try {
     const { user_session_id } = req.params;
     const { question_id, is_correct, response_time_ms } = req.body;
@@ -188,20 +204,13 @@ async function submitAnswer(req, res) {
 async function submitSessionSummary(req, res) {
   try {
     const { user_session_id } = req.params;
-    // ❗️NE PAS redéclarer deux fois — on destructure une seule fois
     const { questions_played, score, completion_percentage } = req.body || {};
 
     const session = await UserSession.findOne({ user_session_id }); // ✅ clé correcte
-
     if (!session) {
       return res.status(404).json({ message: "Session non trouvée" });
     }
 
-    // Coercition numérique sûre (le front peut envoyer des strings)
-    const toNum = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
     const s = toNum(score);
     const cp = toNum(completion_percentage);
 
@@ -237,23 +246,9 @@ async function submitSessionSummary(req, res) {
   }
 }
 
-
 /* ---------------------- Résumé profil : 10 dernières + totaux ---------------------- */
-/**
- * GET /api/user-sessions/me/summary
- * - Avec auth: req.user._id / req.user.id
- * - Sans auth: ?user_id=xxx  (fallback req.params.user_id)
- *
- * Réponse:
- * {
- *   recentSessions: [{ user_session_id, quizTitle, gameCode, score, date }],
- *   totalScore: Number,
- *   totalGames: Number
- * }
- */
 async function getMySummary(req, res) {
   try {
-    // 1) On force un userId clair
     const userId =
       (req.user && (req.user.id || req.user._id)) ||
       req.query.user_id ||
@@ -263,18 +258,11 @@ async function getMySummary(req, res) {
       return res.status(400).json({ message: "user_id manquant (auth ou query param)" });
     }
 
-    // 2) Dernières 10 sessions de CE user_id
     const recentAgg = await UserSession.aggregate([
       { $match: { user_id: String(userId) } },
-      {
-        $addFields: {
-          _date: { $ifNull: ["$end_time", "$start_time"] }, // priorité fin
-        },
-      },
+      { $addFields: { _date: { $ifNull: ["$end_time", "$start_time"] } } },
       { $sort: { _date: -1 } },
       { $limit: 10 },
-
-      // Lookup Quiz (supporte quiz_id string OU ObjectId)
       {
         $lookup: {
           from: "quizzes",
@@ -308,8 +296,6 @@ async function getMySummary(req, res) {
         },
       },
       { $unwind: { path: "$quizDoc", preserveNullAndEmptyArrays: true } },
-
-      // Lookup GameSession par code : game_session_id (UserSession) ⇄ session_id (GameSession)
       {
         $lookup: {
           from: "gamesessions",
@@ -319,34 +305,23 @@ async function getMySummary(req, res) {
         },
       },
       { $unwind: { path: "$gameDoc", preserveNullAndEmptyArrays: true } },
-
       {
         $project: {
           user_session_id: 1,
           score: 1,
           date: "$_date",
-          quizTitle: {
-            $ifNull: ["$quizDoc.title", { $ifNull: ["$quizDoc.name", "Quiz"] }],
-          },
+          quizTitle: { $ifNull: ["$quizDoc.title", { $ifNull: ["$quizDoc.name", "Quiz"] }] },
           gameCode: { $ifNull: ["$gameDoc.session_id", null] },
         },
       },
     ]);
 
-    // 3) Totaux (sur TOUTES les sessions de ce user)
     const totalsAgg = await UserSession.aggregate([
       { $match: { user_id: String(userId) } },
-      {
-        $group: {
-          _id: null,
-          totalScore: { $sum: "$score" },
-          totalGames: { $sum: 1 },
-        },
-      },
+      { $group: { _id: null, totalScore: { $sum: "$score" }, totalGames: { $sum: 1 } } },
     ]);
     const totals = totalsAgg[0] || { totalScore: 0, totalGames: 0 };
 
-    // 4) Réponse
     res.status(200).json({
       recentSessions: recentAgg,
       totalScore: totals.totalScore,
@@ -361,8 +336,8 @@ async function getMySummary(req, res) {
   }
 }
 
+/* ---------------------- Fin de partie (flux Flutter) ---------------------- */
 async function endGameSession(req, res) {
-  // ---- DIAG ENTRÉE
   console.log("[/end] IN", {
     param_user_session_id: req.params.user_session_id,
     body: req.body,
@@ -372,7 +347,6 @@ async function endGameSession(req, res) {
   try {
     const { user_session_id } = req.params;
 
-    // 1) Session
     let session = await UserSession.findOne({ user_session_id }).lean();
     console.log("[/end] session", session && {
       user_session_id: session.user_session_id,
@@ -384,19 +358,14 @@ async function endGameSession(req, res) {
 
     const userId = String(session.user_id);
 
-    // 2) Coercition numérique robuste
-    const toNum = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
-
-    // 3) Mettre à jour la session avec le score/stats reçus
     const scoreFromBody = toNum(req.body?.score_total) ?? toNum(req.body?.score);
     const upd = { };
     if (scoreFromBody !== null) upd.score = scoreFromBody;
-    if (Array.isArray(req.body?.answers)) upd.questions_played = req.body.answers.map((i) => ({
-      question_id: null, answered: true, is_correct: (toNum(i) ?? -1) >= 0, response_time_ms: null
-    }));
+    if (Array.isArray(req.body?.answers)) {
+      upd.questions_played = req.body.answers.map((i) => ({
+        question_id: null, answered: true, is_correct: (toNum(i) ?? -1) >= 0, response_time_ms: null
+      }));
+    }
     const elapsedMs = toNum(req.body?.elapsedMs);
     if (elapsedMs !== null) upd.elapsed_ms = elapsedMs;
     const streakMax = toNum(req.body?.streakMax);
@@ -406,7 +375,6 @@ async function endGameSession(req, res) {
       upd.end_time = new Date();
     }
 
-    // ⚠️ Sauvegarde (et relis)
     const updated = await UserSession.findOneAndUpdate(
       { user_session_id },
       { $set: upd },
@@ -416,14 +384,12 @@ async function endGameSession(req, res) {
       score: updated.score, status: updated.status, streak_max: updated.streak_max
     });
 
-    // 4) Vérifier que l'utilisateur existe (cause typique des 500)
     const userDoc = await User.findOne({ user_id: userId }, { score_total:1, achievement_state:1 }).lean();
     if (!userDoc) {
       console.error("[/end] user introuvable pour user_id", userId);
       return res.status(400).json({ message: "Utilisateur introuvable", user_id: userId });
     }
 
-    // 5) Incrément du total + achievements
     let out;
     try {
       out = await addSessionScoreAndUnlock(userId, toNum(updated.score) ?? 0);
@@ -432,7 +398,6 @@ async function endGameSession(req, res) {
       return res.status(500).json({ message: "Erreur MAJ total/achievements", detail: String(err?.message || err) });
     }
 
-    // 6) Snapshot final user
     const fresh = await User.findOne(
       { user_id: userId },
       { score_total:1, achievement_state:1 }
@@ -445,7 +410,6 @@ async function endGameSession(req, res) {
       unlocked: out?.newlyUnlocked,
     });
 
-    // préchauffe les recos pour la prochaine session
     prewarmRecommendations(userId);
 
     return res.json({
@@ -463,6 +427,95 @@ async function endGameSession(req, res) {
   }
 }
 
+/* ---------------------- NOUVEAU : enregistrement léger (Entraînement) ---------------------- */
+/**
+ * POST /api/user-sessions/record
+ * Body (alias acceptés) :
+ *  - user_id | userId | uid
+ *  - question_id | questionId | qid
+ *  - theme (ou backfill via la question)
+ *  - difficulty | level (facultatif, défaut "facile")
+ *  - correct | is_correct | success (bool, accepte "true","1","ok"...)
+ *  - response_time_ms | time_ms | duration_ms | elapsed_ms
+ *  - source (défaut "training")
+ */
+async function recordTrainingEvent(req, res) {
+  try {
+    const b = req.body || {};
+    const user_id = pick(b, "user_id", "userId", "uid", "user");
+    let question_id = pick(b, "question_id", "questionId", "qid", "question");
+    let theme = pick(b, "theme", "topic", "category");
+    const difficulty = pick(b, "difficulty", "level", "lvl") || "facile";
+    const correct = toBool(pick(b, "correct", "is_correct", "good", "success", "result"));
+    const response_time_ms = toNum(pick(b, "response_time_ms", "time_ms", "duration_ms", "elapsed_ms", "responseTimeMs"));
+    const source = pick(b, "source", "origin") || "training";
+
+    // backfill theme si absent
+    if (!theme && question_id) {
+      try {
+        const q = await mongoose.connection.collection("questions")
+          .findOne({ $or: [{ _id: new mongoose.Types.ObjectId(question_id).valueOf() }, { question_id: String(question_id) }] }, { projection: { theme: 1 } });
+        if (q && q.theme) theme = q.theme;
+      } catch (_) {
+        // ignore (question_id peut ne pas être un ObjectId)
+      }
+    }
+
+    if (!user_id || !question_id || !theme) {
+      return res.status(400).json({ success: false, message: "user_id, question_id, theme sont requis" });
+    }
+
+    const now = new Date();
+    const payload = {
+      user_id: String(user_id),
+      question_id: String(question_id),
+      theme: String(theme),
+      difficulty,
+      correct,
+      response_time_ms: typeof response_time_ms === "number" ? response_time_ms : undefined,
+      source,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // insert direct dans la collection "usersessions" (tolère l'hétérogénéité historique)
+    await mongoose.connection.collection("usersessions").insertOne(payload);
+
+    prewarmRecommendations(String(user_id));
+
+    return res.status(201).json({ success: true, event: payload });
+  } catch (e) {
+    console.error("❌ recordTrainingEvent:", e);
+    return res.status(500).json({ success: false, message: "Erreur serveur", details: String(e.message || e) });
+  }
+}
+
+/**
+ * GET /api/user-sessions/logs?user_id=&theme=&limit=
+ * Liste rapide des événements d’entraînement.
+ */
+async function listTrainingEvents(req, res) {
+  try {
+    const q = {};
+    if (req.query.user_id) q.user_id = String(req.query.user_id);
+    if (req.query.theme) q.theme = String(req.query.theme);
+    const limit = Math.min(parseInt(req.query.limit || "50", 10), 500);
+
+    const items = await mongoose.connection
+      .collection("usersessions")
+      .find(q)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit)
+      .project({ _id: 0 }) // sortie lisible
+      .toArray();
+
+    res.json({ success: true, items });
+  } catch (e) {
+    console.error("❌ listTrainingEvents:", e);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
+}
+
 /* ---------------------- EXPORT UNIQUE ---------------------- */
 module.exports = {
   createUserSession,
@@ -472,4 +525,8 @@ module.exports = {
   submitSessionSummary,
   getMySummary,
   endGameSession,
+
+  // nouveaux
+  recordTrainingEvent,
+  listTrainingEvents,
 };

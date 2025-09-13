@@ -1,6 +1,7 @@
 // routes/userSessionRoutes.js
 const express = require("express");
-const router = express.Router();
+const router = require("express").Router();
+const ctrl = require("../controllers/userSessionController");
 
 // ⚠️ importe le bon contrôleur (extension explicite)
 const controller = require("../controllers/userSessionController.js");
@@ -38,5 +39,8 @@ router.post(
   "/:user_session_id/end",
   requireFn(controller.endGameSession, "endGameSession")
 );
+
+router.post("/record", ctrl.recordTrainingEvent);
+router.get("/logs", ctrl.listTrainingEvents);
 
 module.exports = router;

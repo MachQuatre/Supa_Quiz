@@ -18,42 +18,16 @@ const questionPlayedSchema = new mongoose.Schema(
 );
 
 /* ---- UserSession ---- */
-const userSessionSchema = new mongoose.Schema(
-  {
-    user_session_id: {
-      type: String, required: true, unique: true, index: true,
-      validate: { validator: (v) => UUIDv4.test(String(v)), message: "user_session_id doit être un UUIDv4." },
-    },
-    game_session_id: { type: String, index: true },
+const UserSessionSchema = new mongoose.Schema({
+  user_id: { type: String, required: true, index: true },
+  question_id: { type: String, required: true },
+  theme: { type: String, required: true, index: true },
+  difficulty: { type: String }, // accepte ce que tu envoies
+  correct: { type: Boolean, required: true },
+  response_time_ms: { type: Number },
+  source: { type: String, default: "training", index: true }, // training|quiz|...
+}, { timestamps: true, collection: "usersessions" });
 
-    user_id: {
-      type: String, required: true, index: true,
-      validate: { validator: (v) => UUIDv4.test(String(v)), message: "user_id doit être un UUIDv4 (users.user_id)." },
-    },
-
-    quiz_id: { type: String, required: true },
-
-    // Horodatage
-    start_time: { type: Date, default: Date.now, index: true },
-    end_time:   { type: Date, index: true },
-
-    // Scores
-    score: { type: Number, default: 0, index: true },
-    completion_percentage: { type: Number, default: 0 },
-
-    // Métadonnées
-    theme: { type: String },
-
-    // ✅ Champs manquants (écrits par /end)
-    status: { type: String, default: "active", index: true }, // "active" -> "ended"
-    elapsed_ms: { type: Number },
-    streak_max: { type: Number },
-
-    // Détail des questions
-    questions_played: { type: [questionPlayedSchema], default: [] },
-  },
-  { versionKey: false }
-);
 
 /* Normalisation légère */
 userSessionSchema.pre("validate", function (next) {
