@@ -1,5 +1,6 @@
-const IP = "localhost";
-const PORT = "3000";
+//const IP = "localhost";
+//const PORT = "3000";
+window.API_BASE = ""; // même origine (Nginx reverse-proxy sur /api)
 
 function showSection(id) {
     const sections = document.querySelectorAll('.section');
@@ -30,7 +31,7 @@ function loadUserQuizzes() {
     const token = document.getElementById("token")?.value;
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/quiz/mine`, {
+    fetch(`${window.API_BASE}/api/quiz/mine`, {
         headers: { "Authorization": `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -56,7 +57,7 @@ function loadUserQuizzesForQuestions() {
     const token = document.getElementById("token")?.value;
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/quiz/mine`, {
+    fetch(`${window.API_BASE}/api/quiz/mine`, {
         headers: { "Authorization": `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -93,7 +94,7 @@ function loadQuizzesForSession() {
     const token = document.getElementById("token")?.value;
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/quiz/mine`, {
+    fetch(`${window.API_BASE}/api/quiz/mine`, {
         headers: { "Authorization": `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -113,7 +114,7 @@ function loadActiveSessions() {
     const token = document.getElementById("token")?.value;
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/game-sessions/active`, {
+    fetch(`${window.API_BASE}/api/game-sessions/active`, {
         headers: { "Authorization": `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -212,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 questions: []
             };
 
-            fetch(`http://${IP}:${PORT}/api/quiz`, {
+            fetch(`${window.API_BASE}/api/quiz`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -251,7 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 answer_options
             };
 
-            fetch(`http://${IP}:${PORT}/api/questions`, {
+            fetch(`${window.API_BASE}/api/questions`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -277,7 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!token) return;
 
             try {
-                const userRes = await fetch(`http://${IP}:${PORT}/api/auth/me`, {
+                const userRes = await fetch(`${window.API_BASE}/api/auth/me`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
@@ -304,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     host_id: hostId
                 };
 
-                const res = await fetch(`http://${IP}:${PORT}/api/game-sessions`, {
+                const res = await fetch(`${window.API_BASE}/api/game-sessions`, {
                     method: "POST",
                     headers: {
                         "Authorization": `Bearer ${token}`,
@@ -372,7 +373,7 @@ function closeSession(sessionCode) {
     const token = document.getElementById("token")?.value;
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/game-sessions/${sessionCode}/end`, {
+    fetch(`${window.API_BASE}/api/game-sessions/${sessionCode}/end`, {
         method: "PATCH",
         headers: {
             "Authorization": `Bearer ${token}`
@@ -398,7 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const userNameSpan = document.getElementById("user-name");
 
     if (token && userNameSpan) {
-        fetch(`http://${IP}:${PORT}/api/auth/me`, {
+        fetch(`${window.API_BASE}/api/auth/me`, {
             headers: { "Authorization": `Bearer ${token}` }
         })
         .then(res => res.json())
