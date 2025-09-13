@@ -32,7 +32,7 @@ function openQuizDetails(quizId, title) {
     const token = getAuthToken();
     if (!token || !quizId) return;
 
-    fetch(`http://${IP}:${PORT}/api/quiz/${quizId}/questions`, {
+    fetch(`${window.API_BASE}/api/quiz/${quizId}/questions`, {
         headers: { "Authorization": `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -70,7 +70,7 @@ function confirmDeleteQuiz(quizId, title) {
     const token = getAuthToken();
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/quiz/${quizId}`, {
+    fetch(`${window.API_BASE}/api/quiz/${quizId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
     })
@@ -91,7 +91,7 @@ function confirmDeleteQuestion(questionId, questionText, quizId) {
     const token = getAuthToken();
     if (!token) return;
 
-    fetch(`http://${IP}:${PORT}/api/quiz/${quizId}/questions/${questionId}`, {
+    fetch(`${window.API_BASE}/api/quiz/${quizId}/questions/${questionId}`, {
         method: "DELETE",
         headers: {
             "Authorization": `Bearer ${token}`

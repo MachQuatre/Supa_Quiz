@@ -1,0 +1,81 @@
+# Compose v2 (pas de clé "version")
+
+services:
+  # --- (Optionnel) Mongo local sur le VPS ---
+  # Si tu utilises MongoDB Atlas, commente ce service ET mets MONGO_URI=... Atlas dans .env
+  mongo:
+    image: mongo:6
+    container_name: supaquiz-mongo
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  node_backend:
+    build:
+      context: ./backend/nodejs/supa_quiz_server
+      dockerfile: Dockerfile
+    container_name: supaquiz-node
+    environment:
+      PORT: 3001
+      MONGO_URI: mongodb://mongo:27017/quiz_app
+      JWT_SECRET: ${JWT_SECRET}
+      PY_AI_URL: http://ai_service:5001
+    expose:
+      - "3001"
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  ai_service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: supaquiz-ai
+    environment:
+      FLASK_RUN_PORT: 5001
+      WORDCOUNTS_PATH: /data/word_counts.tsv
+      AI_SHARED_SECRET: ${AI_SHARED_SECRET}
+      MONGO_URI: ${MONGO_URI}
+    volumes:
+      - ./data:/data:ro
+    expose:
+      - "5001"
+    restart: unless-stopped
+
+  # Interface Go Admin (proxifiée sous /admin par Nginx)
+  go_admin:
+    build:
+      context: ./frontend/golang
+      dockerfile: Dockerfile
+    container_name: supaquiz-go-admin
+    environment:
+      BACKEND_HOST: node_backend
+      BACKEND_PORT: "3001"
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: quiz_app
+    expose:
+      - "8080"
+    depends_on:
+      - node_backend
+    restart: unless-stopped
+
+  # Frontend Flutter Web + Nginx (sert le SPA et fait le reverse-proxy)
+  flutter_web:
+    build:
+      context: ./frontend/flutter
+      dockerfile: Dockerfile
+      args:
+        # Laisser vide = même origine "/api" (recommandé).
+        # Exemple si séparé : "https://api.mon-domaine.tld"
+        API_BASE_URL: ""
+    container_name: supaquiz-web
+    depends_on:
+      - node_backend
+      - ai_service
+      - go_admin
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

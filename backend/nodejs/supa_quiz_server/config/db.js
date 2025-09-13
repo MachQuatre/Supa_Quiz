@@ -1,3 +1,4 @@
+// backend/nodejs/supa_quiz_server/config/db.js
 require("dotenv").config();
 const mongoose = require("mongoose");
 
@@ -7,6 +8,10 @@ if (!mongoURI) {
     console.error("❌ Erreur: La variable MONGO_URI est undefined !");
     process.exit(1);
 }
+
+// (ajout)
+const safeUri = mongoURI.replace(/\/\/([^@]+)@/, "//***:***@");
+console.log("🔌 Mongo target:", safeUri);
 
 const connectDB = async () => {
     try {

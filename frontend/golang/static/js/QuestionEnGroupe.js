@@ -69,7 +69,7 @@ function setupBulkQuestionUpload() {
                         answer_options: q.options
                     };
 
-                    const res = await fetch(`http://${IP}:${PORT}/api/questions`, {
+                    const res = await fetch(`${window.API_BASE}/api/questions`, {
                         method: "POST",
                         headers: {
                             "Authorization": `Bearer ${token}`,
