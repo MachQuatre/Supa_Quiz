@@ -35,13 +35,13 @@ services:
       FLASK_RUN_PORT: 5001
       WORDCOUNTS_PATH: /data/word_counts.tsv
       AI_SHARED_SECRET: ${AI_SHARED_SECRET}
-      MONGO_URI: ${MONGO_URI}
+      MONGO_URI: mongodb://mongo:27017/
+      MONGO_DB: quiz_app
     volumes:
       - ./data:/data:ro
     expose:
       - "5001"
     restart: unless-stopped
-
   # Interface Go Admin (proxifiée sous /admin par Nginx)
   go_admin:
     build:

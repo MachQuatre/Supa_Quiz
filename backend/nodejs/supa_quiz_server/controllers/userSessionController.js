@@ -481,46 +481,62 @@ async function endGameSession(req, res) {
 async function recordTrainingEvent(req, res) {
   try {
     const b = req.body || {};
-    const user_id = pick(b, "user_id", "userId", "uid", "user");
 
-    // 1) Récupérer question_id depuis plusieurs alias / objets imbriqués
-    let rawQ = pick(
-      b,
-      "question_id", "questionId", "QuestionId", "questionID",
-      "qid", "id", "question"
-    );
+    // 1) On privilégie l'UUID "métier" du JWT (users.user_id)
+    const user_id =
+      (req.user && (req.user.user_id || req.user.id)) ||
+      null; // pas de fallback body ici pour éviter incohérences
 
-    // support des payloads du type { question: {...} } ou { question_id: {...} }
+    if (!user_id) {
+      return res.status(401).json({ success: false, error: "unauthorized" });
+    }
+
+    // 2) question_id (avec aliases + objet imbriqué)
+    const pick = (obj, ...keys) => {
+      for (const k of keys) if (obj && obj[k] !== undefined) return obj[k];
+      return undefined;
+    };
+    const toNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    const toBool = (v) => {
+      if (typeof v === "boolean") return v;
+      if (typeof v === "number") return v !== 0;
+      if (typeof v === "string") {
+        const s = v.trim().toLowerCase();
+        return ["true", "1", "yes", "ok", "correct", "vrai"].includes(s);
+      }
+      return false;
+    };
+
+    let rawQ = pick(b, "question_id", "questionId", "qid", "id", "question");
     const extractFromObj = (o) => {
       if (!o || typeof o !== "object") return undefined;
-      return (
-        o.question_id ??
-        o.questionId ??
-        o.id ??
-        o._id ??
-        o.code ??
-        o.name ??
-        o.slug ??
-        o.ref
-      );
+      return o.question_id ?? o.questionId ?? o.id ?? o._id ?? o.code ?? o.name ?? o.slug ?? o.ref;
     };
     if (rawQ && typeof rawQ === "object") rawQ = extractFromObj(rawQ);
     if (!rawQ && typeof b.question === "object") rawQ = extractFromObj(b.question);
 
-    // normalisation string
     let question_id = rawQ != null ? String(rawQ).trim() : "";
 
-    // 2) Thème (ou backfill via question)
+    // 3) theme / difficulty / correct / time / source
     let theme = pick(b, "theme", "topic", "category");
     const difficulty = pick(b, "difficulty", "level", "lvl") || "facile";
-    const correct = toBool(pick(b, "correct", "is_correct", "good", "success", "result"));
-    const response_time_ms = toNum(pick(b, "response_time_ms", "time_ms", "duration_ms", "elapsed_ms", "responseTimeMs"));
+    const correct = toBool(pick(b, "correct", "is_correct", "success", "result"));
+    const response_time_ms = toNum(
+      pick(b, "response_time_ms", "time_ms", "duration_ms", "elapsed_ms", "responseTimeMs")
+    );
     const source = pick(b, "source", "origin") || "training";
 
-    // 3) Canoniser le question_id contre la collection questions (support _id, question_id, code, name)
+    // 4) Canoniser question_id contre la collection "questions"
+    const mongoose = require("mongoose");
     let canonicalQid = question_id;
     if (question_id) {
-      const or = [{ question_id }, { code: question_id }, { name: question_id }, { slug: question_id }, { ref: question_id }];
+      const or = [
+        { question_id },
+        { code: question_id },
+        { name: question_id },
+        { slug: question_id },
+        { ref: question_id },
+      ];
       if (mongoose.isValidObjectId(question_id)) {
         or.unshift({ _id: new mongoose.Types.ObjectId(question_id) });
       }
@@ -532,19 +548,19 @@ async function recordTrainingEvent(req, res) {
       if (!theme && qDoc?.theme) theme = qDoc.theme;
     }
 
-    // 4) Garde-fous : on refuse l’event si on n’a pas d’ID canonique
-    if (!user_id || !canonicalQid || !theme) {
+    if (!canonicalQid || !theme) {
       return res.status(400).json({
         success: false,
-        message: "user_id, question_id, theme requis",
-        debug: { user_id, canonicalQid, theme }
+        error: "bad_request",
+        reason: "missing_question_or_theme",
+        debug: { canonicalQid, theme },
       });
     }
 
     const now = new Date();
     const payload = {
-      user_id: String(user_id),
-      question_id: canonicalQid,                 // ✅ ID canonique aligné sur questions.question_id
+      user_id: String(user_id),        // ✅ UUID du JWT
+      question_id: canonicalQid,       // ✅ conforme à questions.question_id
       theme: String(theme),
       difficulty,
       correct,
@@ -554,16 +570,18 @@ async function recordTrainingEvent(req, res) {
       updatedAt: now,
     };
 
-    await mongoose.connection.collection("usersessions").insertOne(payload);
+    await require("mongoose").connection.collection("usersessions").insertOne(payload);
 
-    prewarmRecommendations(String(user_id));
+    // préchauffe les recos
+    try { prewarmRecommendations(String(user_id)); } catch (_) {}
 
     return res.status(201).json({ success: true, event: payload });
   } catch (e) {
     console.error("❌ recordTrainingEvent:", e);
-    return res.status(500).json({ success: false, message: "Erreur serveur", details: String(e.message || e) });
+    return res.status(500).json({ success: false, message: "server_error" });
   }
 }
+
 
 /**
  * GET /api/user-sessions/logs?user_id=&theme=&limit=

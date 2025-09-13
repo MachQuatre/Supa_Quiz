@@ -2,6 +2,7 @@
 const express = require("express");
 const router = require("express").Router();
 const ctrl = require("../controllers/userSessionController");
+const auth = require("../middleware/auth");
 
 // ⚠️ importe le bon contrôleur (extension explicite)
 const controller = require("../controllers/userSessionController.js");
@@ -40,7 +41,7 @@ router.post(
   requireFn(controller.endGameSession, "endGameSession")
 );
 
-router.post("/record", ctrl.recordTrainingEvent);
-router.get("/logs", ctrl.listTrainingEvents);
+router.post("/record", auth, controller.recordTrainingEvent); // <-- protège la route
+router.get("/logs", controller.listTrainingEvents);
 
 module.exports = router;
