@@ -450,15 +450,17 @@ async function recordTrainingEvent(req, res) {
     const response_time_ms = toNum(pick(b, "response_time_ms", "time_ms", "duration_ms", "elapsed_ms", "responseTimeMs"));
     const source = pick(b, "source", "origin") || "training";
 
-    // backfill theme si absent
+    // Backfill du thème si manquant (support _id, question_id, code, name)
     if (!theme && question_id) {
-      try {
-        const q = await mongoose.connection.collection("questions")
-          .findOne({ $or: [{ _id: new mongoose.Types.ObjectId(question_id).valueOf() }, { question_id: String(question_id) }] }, { projection: { theme: 1 } });
-        if (q && q.theme) theme = q.theme;
-      } catch (_) {
-        // ignore (question_id peut ne pas être un ObjectId)
+      const qid = String(question_id);
+      const or = [{ question_id: qid }, { code: qid }, { name: qid }];
+      if (mongoose.isValidObjectId(qid)) {
+        or.unshift({ _id: new mongoose.Types.ObjectId(qid) });
       }
+      const qDoc = await mongoose.connection
+        .collection("questions")
+        .findOne({ $or: or }, { projection: { theme: 1 } });
+      if (qDoc?.theme) theme = qDoc.theme;
     }
 
     if (!user_id || !question_id || !theme) {
@@ -478,7 +480,7 @@ async function recordTrainingEvent(req, res) {
       updatedAt: now,
     };
 
-    // insert direct dans la collection "usersessions" (tolère l'hétérogénéité historique)
+    // Insert direct (tolère l’hétérogénéité historique de la collection)
     await mongoose.connection.collection("usersessions").insertOne(payload);
 
     prewarmRecommendations(String(user_id));
@@ -494,11 +496,13 @@ async function recordTrainingEvent(req, res) {
  * GET /api/user-sessions/logs?user_id=&theme=&limit=
  * Liste rapide des événements d’entraînement.
  */
+// Lecture rapide des événements d’entraînement
 async function listTrainingEvents(req, res) {
   try {
     const q = {};
     if (req.query.user_id) q.user_id = String(req.query.user_id);
     if (req.query.theme) q.theme = String(req.query.theme);
+    if (req.query.source) q.source = String(req.query.source); // ex: training|quiz
     const limit = Math.min(parseInt(req.query.limit || "50", 10), 500);
 
     const items = await mongoose.connection
@@ -506,13 +510,13 @@ async function listTrainingEvents(req, res) {
       .find(q)
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
-      .project({ _id: 0 }) // sortie lisible
+      .project({ _id: 0 })
       .toArray();
 
-    res.json({ success: true, items });
+    return res.json({ success: true, items });
   } catch (e) {
     console.error("❌ listTrainingEvents:", e);
-    res.status(500).json({ success: false, message: "Erreur serveur" });
+    return res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 }
 

@@ -2,10 +2,11 @@ const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid"); // conservé (utile ailleurs)
 const Question = require("../models/questionModel");
 const Quiz = require("../models/quizModel");
+const { isValidObjectId, Types } = require("mongoose");
 
 // ------------------------- helpers -------------------------
 function isObjectId(v) {
-  return mongoose.isValidObjectId(v);
+  return isValidObjectId(v);
 }
 function uniq(arr) {
   return Array.from(new Set((arr || []).filter(Boolean)));
