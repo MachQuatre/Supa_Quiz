@@ -1,75 +1,125 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Super Utilisateur - Dashboard</title>
+
+    <!-- Tes scripts existants (population des selects, actions, etc.) -->
     <script src="/static/js/dashboard.js" defer></script>
     <script src="/static/js/QuestionEnGroupe.js" defer></script>
     <script src="/static/js/quizActions.js" defer></script>
-    
 
     <style>
-        #menu { margin-bottom: 20px; }
-        .section { display: none; }
-        .topbar { display: flex; justify-content: space-between; align-items: center; }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 20px;
+        :root{
+            --bg:#121212; --panel:#1e1e1e; --panel-2:#262626;
+            --violet:#6A0DAD; --violet-2:#9B59B6;
+            --text:#FFFFFF; --muted:#B0B0B0; --border:#2f2f2f;
+            --danger:#e74c3c; --ok:#2ECC71;
         }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: center;
+        *{ box-sizing:border-box }
+        html,body{ margin:0; padding:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif }
+        .container{ max-width:1100px; margin:28px auto; padding:0 18px }
+
+        /* Topbar */
+        .topbar{ display:flex; justify-content:space-between; align-items:center; gap:16px;
+                 background:var(--panel); padding:18px 22px; border-radius:14px; border:1px solid var(--border) }
+        .topbar h1{ margin:0; font-size:20px; font-weight:700 }
+        .topbar a{ color:#fff; text-decoration:none; padding:12px 18px; border-radius:10px;
+                   background:linear-gradient(135deg,var(--violet),var(--violet-2)) }
+        .topbar a:hover{ filter:brightness(1.08) }
+
+        /* Menu (plus d’espace) */
+        #menu{ display:flex; flex-wrap:wrap; gap:24px; margin:26px 0 14px }
+        .menu-btn{ background:var(--panel); color:var(--text); border:1px solid var(--border);
+                   padding:14px 20px; border-radius:12px; cursor:pointer; transition:.2s;
+                   font-size:15px; font-weight:600; letter-spacing:.2px }
+        .menu-btn:hover{ background:var(--panel-2); border-color:#3a3a3a }
+        .menu-btn.active{ background:var(--violet); border-color:transparent }
+
+        /* Sections */
+        .section{ display:none; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px; margin-top:16px }
+        .section h2,.section h3,.section h4{ margin-top:0; color:var(--violet-2) }
+
+        /* Formulaires */
+        form{ margin-top:6px }
+        label{ display:block; margin:14px 0 }
+        input,select{ width:100%; padding:12px; margin-top:8px; background:#2a2a2a; color:var(--text);
+                      border:1px solid var(--violet); border-radius:10px }
+        input::placeholder{ color:var(--muted) }
+        button,.btn{ display:inline-block; padding:12px 18px; border:none; border-radius:12px; cursor:pointer;
+                     background:var(--violet); color:#fff; font-weight:700; transition:.2s; margin-top:16px }
+        button:hover,.btn:hover{ background:var(--violet-2) }
+        .btn-secondary{ background:transparent; border:1px solid var(--violet); color:#fff }
+        .btn-secondary:hover{ background:var(--panel-2) }
+
+        /* Tables */
+        table{ width:100%; border-collapse:collapse; margin-top:18px; overflow:hidden; border-radius:12px }
+        thead th{ background:var(--panel-2); color:#fff; text-align:center; padding:14px; border-bottom:1px solid var(--border) }
+        tbody td{ padding:12px 14px; text-align:center; border-bottom:1px solid var(--border) }
+        tbody tr:nth-child(even){ background:#222 }
+        tbody tr:hover{ background:#282828 }
+
+        .status-msg{ margin-top:10px }
+        .status-ok{ color:var(--ok) } .status-error{ color:var(--danger) }
+
+        @media (max-width:720px){
+            .topbar{ flex-direction:column; gap:12px; align-items:flex-start }
+            .topbar h1{ font-size:18px }
+            .menu-btn{ width:100% }
         }
     </style>
 </head>
 <body>
+<div class="container">
+    <!-- Topbar -->
     <div class="topbar">
         <h1 id="welcome-message">Bienvenue, <span id="user-name"></span></h1>
         <a href="/logout">🚪 Se déconnecter</a>
     </div>
 
-    <!-- 🔐 Token JWT injecté dynamiquement via Go -->
+    <!-- Tokens -->
     <input type="hidden" id="token" value="{{.Token}}">
+    <input type="hidden" id="host_id" value="{{.UserID}}">
 
+    <!-- Menu -->
     <div id="menu">
-        <button onclick="showSection('badges')">🎖️ Badges</button>
-        <button onclick="showSection('add-question')">➕ Ajouter Question</button>
-        <button onclick="showSection('add-quiz')">📋 Ajouter Questionnaire</button>
-        <button onclick="showSection('create-session')">🕒 Créer Session</button>
-        <button onclick="showSection('promotion-tools')" id="btn-promote" style="display:none;">⚙️ Promotion / Rétrogradation</button>
+        <button class="menu-btn" onclick="showSection('add-question')">➕ Ajouter Question</button>
+        <button class="menu-btn" onclick="showSection('add-quiz')">📋 Ajouter Questionnaire</button>
+        <button class="menu-btn" onclick="showSection('create-session')">🕒 Créer Session</button>
+        <button class="menu-btn" id="btn-promote" style="display:none;" onclick="showSection('promotion-tools')">⚙️ Promotion / Rétrogradation</button>
     </div>
 
     <div id="content">
-
-        <div id="badges" class="section">
-            <h2>Attribution de Badges</h2>
-            <p>Fonctionnalité à venir...</p>
-        </div>
-
+        <!-- Ajouter une question -->
         <div id="add-question" class="section">
             <h2>Ajouter une Question</h2>
             <form id="add-question-form">
-                <label for="quiz-select">Sélectionnez un questionnaire :</label>
-                <select id="quiz-select" name="quiz_id" required></select>
-        
-                <label>Thème : <input type="text" name="theme" required></label><br>
+                <label for="quiz-select">Sélectionnez un questionnaire :
+                    <select id="quiz-select" name="quiz_id" required></select>
+                </label>
+
+                <label>Thème :
+                    <input type="text" name="theme" placeholder="Ex. Culture, Sciences..." required>
+                </label>
+
                 <label>Difficulté :
                     <select name="difficulty" required>
                         <option value="facile">Facile</option>
                         <option value="moyen">Moyen</option>
                         <option value="difficile">Difficile</option>
                     </select>
-                </label><br><br>
-        
-                <label>Intitulé : <input type="text" name="question_text" required></label><br><br>
-                <label>Réponse A : <input type="text" name="answerA" required></label><br>
-                <label>Réponse B : <input type="text" name="answerB" required></label><br>
-                <label>Réponse C : <input type="text" name="answerC" required></label><br>
-                <label>Réponse D : <input type="text" name="answerD" required></label><br><br>
-        
+                </label>
+
+                <label>Intitulé :
+                    <input type="text" name="question_text" placeholder="Votre question..." required>
+                </label>
+
+                <label>Réponse A : <input type="text" name="answerA" required></label>
+                <label>Réponse B : <input type="text" name="answerB" required></label>
+                <label>Réponse C : <input type="text" name="answerC" required></label>
+                <label>Réponse D : <input type="text" name="answerD" required></label>
+
                 <label>Bonne réponse :
                     <select name="correct_answer" required>
                         <option value="A">Réponse A</option>
@@ -77,125 +127,320 @@
                         <option value="C">Réponse C</option>
                         <option value="D">Réponse D</option>
                     </select>
-                </label><br><br>
-        
+                </label>
+
                 <button type="submit">✅ Ajouter la question</button>
             </form>
 
-                <!-- Formulaire JSON -->
-            <h2>📥 Ajouter plusieurs questions (JSON)</h3>
-
+            <h3 style="margin-top:20px">📥 Ajouter plusieurs questions (JSON)</h3>
             <form id="bulk-question-form">
-                <label for="quiz-id-bulk">📋 Sélectionnez un questionnaire :</label>
-                <select id="quiz-id-bulk" name="quiz_id" required></select><br><br>
+                <label for="quiz-id-bulk">📋 Sélectionnez un questionnaire :
+                    <select id="quiz-id-bulk" name="quiz_id" required></select>
+                </label>
 
-                <label for="json-file">📄 Choisissez un fichier JSON :</label>
-                <input type="file" id="json-file" accept="application/json" required><br><br>
+                <label for="json-file">📄 Fichier JSON :
+                    <input type="file" id="json-file" accept="application/json" required>
+                </label>
 
-                <button type="submit">🚀 Envoyer les questions</button>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <button type="submit">🚀 Envoyer les questions</button>
+                    <button type="button" class="btn btn-secondary" id="download-template">
+                        ⬇️ Télécharger le template JSON
+                    </button>
+                </div>
+                <div id="bulk-msg" class="status-msg"></div>
             </form>
         </div>
 
+        <!-- Ajouter un questionnaire -->
         <div id="add-quiz" class="section">
             <h2>Ajouter un Questionnaire</h2>
             <form id="create-quiz-form">
-                <label>Nom du questionnaire : <input type="text" name="title" required></label><br><br>
-                <label>Thème : <input type="text" name="theme" required></label><br><br>
+                <label>Nom du questionnaire :
+                    <input type="text" name="title" placeholder="Ex. Quiz Général" required>
+                </label>
+                <label>Thème :
+                    <input type="text" name="theme" placeholder="Ex. Histoire" required>
+                </label>
                 <label>Difficulté :
                     <select name="difficulty" required>
                         <option value="facile">Facile</option>
                         <option value="moyen">Moyen</option>
                         <option value="difficile">Difficile</option>
                     </select>
-                </label><br><br>
+                </label>
                 <button type="submit">📋 Ajouter le questionnaire</button>
             </form>
-        
-            <h3>Mes Questionnaires</h3>
+
+            <h3 style="margin-top:22px">Mes Questionnaires</h3>
             <table id="quiz-table">
                 <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th>Thème</th>
-                        <th>Difficulté</th>
-                        <th>Nombre de Questions</th>
-                        <th>Actions</th>
-                    </tr>
+                <tr>
+                    <th>Nom</th>
+                    <th>Thème</th>
+                    <th>Difficulté</th>
+                    <th>Questions</th>
+                    <th>Actions</th>
+                </tr>
                 </thead>
-                <tbody>
-                    <!-- JS remplit ce tableau dynamiquement -->
-                </tbody>
+                <tbody></tbody>
             </table>
-        
-            <!-- Détails des questions du quiz sélectionné -->
-            <div id="quiz-details" style="margin-top: 30px; display: none;">
+
+            <div id="quiz-details" style="margin-top: 22px; display: none;">
                 <h4>📚 Questions du Questionnaire : <span id="selected-quiz-title"></span></h4>
-                <ul id="question-list">
-                    <!-- Questions seront injectées ici par JS -->
-                </ul>
+                <ul id="question-list"></ul>
             </div>
         </div>
-        
 
+        <!-- Créer une session -->
         <div id="create-session" class="section">
             <h2>Créer une Session de Jeu</h2>
-        
             <form id="create-session-form">
-                <label for="session-quiz-select">📋 Choisir un questionnaire :</label>
-                <select id="session-quiz-select" name="quiz_id" required></select><br><br>
-        
-                <label for="duration">⏱ Durée (en minutes) :</label>
-                <input type="number" id="duration" name="duration_minutes" min="1" required>
-                <input type="hidden" id="host_id" value="{{.UserID}}">
-        
+                <label for="session-quiz-select">📋 Choisir un questionnaire :
+                    <select id="session-quiz-select" name="quiz_id" required></select>
+                </label>
+                <label for="duration">⏱ Durée (en minutes) :
+                    <input type="number" id="duration" name="duration_minutes" min="1" required>
+                </label>
                 <button type="submit">🎮 Lancer la session</button>
             </form>
-        
-            <div id="active-sessions" style="margin-top: 40px;">
+
+            <div id="active-sessions" style="margin-top:26px;">
                 <h2>📊 Sessions en cours</h2>
                 <table id="session-table">
                     <thead>
-                        <tr>
-                          <th>Quiz</th>
-                          <th>Code</th>
-                          <th>Durée (min)</th>
-                          <th>Démarrée à</th>
-                          <th>Temps restant</th>
-                          <th>Participants</th>
-                        </tr>
-                      </thead>                      
+                    <tr>
+                        <th>Quiz</th>
+                        <th>Code</th>
+                        <th>Durée (min)</th>
+                        <th>Démarrée à</th>
+                        <th>Temps restant</th>
+                        <th>Participants</th>
+                    </tr>
+                    </thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
-        
 
+        <!-- Promotion / Rétrogradation -->
         <div id="promotion-tools" class="section">
             <h2>Gestion des Utilisateurs</h2>
 
-            <form id="promote-form" style="margin-bottom: 30px;">
-                <fieldset>
+            <form id="promote-form" style="margin-bottom:20px;">
+                <fieldset style="border:1px solid var(--border); border-radius:12px; padding:14px;">
                     <legend>⚡ Promouvoir un Utilisateur</legend>
-                    <label>Email :
-                        <input type="email" name="email" required>
-                    </label><br><br>
+                    <label>Email : <input type="email" name="email" placeholder="utilisateur@exemple.com" required></label>
                     <button type="submit">⚡ Promouvoir</button>
                 </fieldset>
             </form>
-            <div id="promote-message" class="status-msg" style="margin-bottom: 20px; font-weight: bold;"></div>
-            
-            <form id="demote-form">
-                <fieldset>
+            <div id="promote-message" class="status-msg"></div>
+
+            <form id="demote-form" style="margin-top:16px;">
+                <fieldset style="border:1px solid var(--border); border-radius:12px; padding:14px;">
                     <legend>⬇️ Rétrograder un Utilisateur</legend>
-                    <label>Email :
-                        <input type="email" name="email" required>
-                    </label><br><br>
+                    <label>Email : <input type="email" name="email" placeholder="utilisateur@exemple.com" required></label>
                     <button type="submit">⬇️ Rétrograder</button>
                 </fieldset>
             </form>
-            <div id="demote-message" class="status-msg" style="margin-top: 10px; font-weight: bold;"></div>
-            
+            <div id="demote-message" class="status-msg"></div>
         </div>
     </div>
+</div>
+
+<script>
+/* =========================
+   Navigation visuelle
+   ========================= */
+const menu = document.getElementById('menu');
+function markActive(id){
+    [...menu.querySelectorAll('.menu-btn')].forEach(b=>b.classList.remove('active'));
+    const btn = [...menu.querySelectorAll('.menu-btn')].find(b=>b.getAttribute('onclick')?.includes(id));
+    if(btn) btn.classList.add('active');
+}
+window.showSection = (function(original){
+    return function(id){
+        document.querySelectorAll('.section').forEach(s=>s.style.display='none');
+        const el = document.getElementById(id);
+        if(el) el.style.display='block';
+        markActive(id);
+        if(typeof original === 'function'){ original(id); }
+    }
+})(window.showSection);
+document.addEventListener('DOMContentLoaded', ()=> showSection('add-question'));
+
+/* =========================
+   TEMPLATE & IMPORT BULK
+   - Format cible pour l'import côté admin:
+     {
+       "quiz_id": "XXXX",
+       "questions": [
+         { "content": "...", "options": ["A","B","C","D"], "answer": 1..4, "theme":"...", "difficulty":"facile|moyen|difficile" }
+       ]
+     }
+   - Compat : accepte aussi "answer" = 0..3 ou "A..D", et/ou {answers:{A,B,C,D}} et/ou "correct_answer".
+   ========================= */
+
+// --- Utilitaires mapping ---
+const LETTERS = ["A","B","C","D"];
+const letterToNum = (v) => {
+  if (typeof v !== "string") return null;
+  const k = v.trim().toUpperCase();
+  const i = LETTERS.indexOf(k);
+  return i === -1 ? null : (i + 1); // 1..4
+};
+const normalizeDifficulty = (v) => {
+  if (!v || typeof v !== "string") return "facile";
+  const k = v.trim().toLowerCase();
+  if (["facile","easy","e"].includes(k)) return "facile";
+  if (["moyen","moyenne","normal","medium","m","md"].includes(k)) return "moyen";
+  if (["difficile","hard","h","d"].includes(k)) return "difficile";
+  return "facile";
+};
+const str = (v) => (typeof v === "string" ? v.trim() : "");
+
+// --- Template JSON (answer en 1..4) ---
+function buildQuestionsTemplateJson(){
+    const quizSelect = document.getElementById('quiz-id-bulk');
+    const quizId = quizSelect && quizSelect.value ? quizSelect.value : "";
+
+    const template = {
+        quiz_id: quizId || "A REMPLIR (ou laisser vide si géré par le select)",
+        questions: [
+            {
+                content: "Quel est l'exemple de question 1 ?",
+                options: ["Réponse A", "Réponse B", "Réponse C", "Réponse D"],
+                answer: 2, // 1=A, 2=B, 3=C, 4=D
+                theme: "Général",
+                difficulty: "facile"
+            },
+            {
+                content: "Quel est l'exemple de question 2 ?",
+                options: ["A2", "B2", "C2", "D2"],
+                answer: 3, // 3 = "C"
+                theme: "Sciences",
+                difficulty: "moyen"
+            }
+        ]
+    };
+    return JSON.stringify(template, null, 2);
+}
+
+function downloadTemplate(filename, content){
+    const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+document.getElementById('download-template')?.addEventListener('click', ()=>{
+    downloadTemplate('questions_template.json', buildQuestionsTemplateJson());
+});
+
+// --- Validation & Normalisation d'une question ---
+function validateQuestion(q, index){
+    // Champs requis (on accepte options[] ou answers.{A,B,C,D}; answer ou correct_answer)
+    const hasOptionsArr = Array.isArray(q.options);
+    const hasAnswersObj = q.answers && typeof q.answers === "object";
+
+    if (!q.content || (!hasOptionsArr && !hasAnswersObj) || (typeof q.answer === 'undefined' && typeof q.correct_answer === 'undefined')) {
+        throw new Error(`Ligne ${index+1}: chaque question doit contenir "content", "options" (ou "answers") et "answer" (ou "correct_answer").`);
+    }
+
+    // Normaliser options -> array de 4 chaînes
+    if (!hasOptionsArr && hasAnswersObj){
+        q.options = [q.answers.A, q.answers.B, q.answers.C, q.answers.D];
+    }
+    if (!Array.isArray(q.options) || q.options.length !== 4 || q.options.some(o => typeof o !== 'string' || !o.trim())) {
+        throw new Error(`Ligne ${index+1}: "options" doit être un tableau de 4 chaînes non vides.`);
+    }
+    q.options = q.options.map(o => String(o).trim());
+
+    // Normaliser la bonne réponse vers nombre 1..4
+    let ans = q.answer;
+    if (typeof ans === 'undefined' && typeof q.correct_answer !== 'undefined'){
+        ans = q.correct_answer;
+    }
+    if (typeof ans === 'string'){
+        const n = letterToNum(ans);
+        if (n == null) throw new Error(`Ligne ${index+1}: réponse "${ans}" invalide (attendu 1..4 ou A..D).`);
+        ans = n;
+    } else if (typeof ans === 'number'){
+        // tolère 0..3 -> 1..4
+        if (ans >= 0 && ans <= 3) ans = ans + 1;
+    } else {
+        throw new Error(`Ligne ${index+1}: "answer" doit être un entier 1..4 ou une lettre A..D.`);
+    }
+    if (typeof ans !== 'number' || ans < 1 || ans > 4){
+        throw new Error(`Ligne ${index+1}: "answer" normalisé doit être 1..4 (1=A, 2=B, 3=C, 4=D).`);
+    }
+    q.answer = ans;
+
+    // Champs texte
+    if (typeof q.content !== 'string' || !q.content.trim()) {
+        throw new Error(`Ligne ${index+1}: "content" doit être une chaîne non vide.`);
+    }
+    q.content = q.content.trim();
+
+    // Valeurs par défaut & normalisation
+    q.theme = str(q.theme) || "Général";
+    q.difficulty = normalizeDifficulty(q.difficulty);
+
+    return q;
+}
+
+/* --- Handler d’import ---
+   ⚠️ Remplace IMPORT_ENDPOINT par ton endpoint côté Go/Node si tu veux envoyer en un seul POST.
+   Sinon, garde la validation seule et appelle ailleurs l’API pour créer chaque question.
+*/
+const IMPORT_ENDPOINT = "/api/quiz/import"; // à adapter si besoin
+
+document.getElementById('bulk-question-form')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const msg = document.getElementById('bulk-msg');
+    const fileInput = document.getElementById('json-file');
+    const quizSelect = document.getElementById('quiz-id-bulk');
+
+    try{
+        if (!fileInput.files?.length) throw new Error("Aucun fichier sélectionné.");
+        const file = fileInput.files[0];
+        const text = await file.text();
+        const raw = JSON.parse(text);
+
+        // Normalise structure de base
+        const quizId = raw.quiz_id || (quizSelect?.value || "");
+        if (!quizId) throw new Error(`Veuillez sélectionner un questionnaire (quiz_id manquant).`);
+
+        const questions = Array.isArray(raw.questions) ? raw.questions.map(validateQuestion) :
+            (()=>{ throw new Error('"questions" doit être un tableau.'); })();
+
+        const payload = { quiz_id: quizId, questions };
+
+        // >>> Branche l'appel fetch si tu veux envoyer réellement au backend (Go/Node)
+        // const token = document.getElementById('token')?.value || '';
+        // const res = await fetch(IMPORT_ENDPOINT, {
+        //     method:'POST',
+        //     headers:{
+        //         'Content-Type':'application/json',
+        //         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        //     },
+        //     body: JSON.stringify(payload)
+        // });
+        // if(!res.ok){
+        //     const errTxt = await res.text().catch(()=>null);
+        //     throw new Error(errTxt || `Erreur HTTP ${res.status}`);
+        // }
+
+        msg.textContent = "✅ Fichier valide : format conforme (answer en 1..4). Prêt à l'envoi.";
+        msg.className = "status-msg status-ok";
+        alert("Validation OK : le JSON est conforme (content/options/answer 1..4).");
+        console.log("Payload normalisé prêt à l'envoi:", payload);
+    }catch(err){
+        msg.textContent = "❌ Erreur de validation : " + (err?.message || err);
+        msg.className = "status-msg status-error";
+        alert("Erreur lors de l'importation : " + (err?.message || err));
+        console.error(err);
+    }
+});
+</script>
 </body>
 </html>
