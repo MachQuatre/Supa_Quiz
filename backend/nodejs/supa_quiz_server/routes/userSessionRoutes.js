@@ -2,7 +2,7 @@
 const express = require("express");
 const router = require("express").Router();
 const ctrl = require("../controllers/userSessionController");
-const auth = require("../middleware/auth");
+const auth = require("../middlewares/authMiddleware");
 
 // ⚠️ importe le bon contrôleur (extension explicite)
 const controller = require("../controllers/userSessionController.js");
