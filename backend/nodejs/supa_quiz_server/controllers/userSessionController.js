@@ -92,7 +92,7 @@ async function createUserSession(req, res) {
 
 /* ---------------------- Mettre à jour une UserSession ---------------------- */
 // Remplace la fonction existante par celle-ci
-exports.updateUserSession = async (req, res) => {
+async function updateUserSession(req, res) {
   try {
     const { id } = req.params; // PUT /api/user-sessions/:id
     const upd = {};
@@ -179,7 +179,7 @@ exports.updateUserSession = async (req, res) => {
     console.error('updateUserSession error:', err);
     return res.status(500).json({ success: false, error: 'server_error' });
   }
-};
+}
 
 
 /* ---------------------- Lister les sessions d’un utilisateur ---------------------- */
