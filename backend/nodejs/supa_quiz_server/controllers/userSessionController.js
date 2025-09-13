@@ -439,38 +439,74 @@ async function endGameSession(req, res) {
  *  - response_time_ms | time_ms | duration_ms | elapsed_ms
  *  - source (défaut "training")
  */
+
 async function recordTrainingEvent(req, res) {
   try {
     const b = req.body || {};
     const user_id = pick(b, "user_id", "userId", "uid", "user");
-    let question_id = pick(b, "question_id", "questionId", "qid", "question");
+
+    // 1) Récupérer question_id depuis plusieurs alias / objets imbriqués
+    let rawQ = pick(
+      b,
+      "question_id", "questionId", "QuestionId", "questionID",
+      "qid", "id", "question"
+    );
+
+    // support des payloads du type { question: {...} } ou { question_id: {...} }
+    const extractFromObj = (o) => {
+      if (!o || typeof o !== "object") return undefined;
+      return (
+        o.question_id ??
+        o.questionId ??
+        o.id ??
+        o._id ??
+        o.code ??
+        o.name ??
+        o.slug ??
+        o.ref
+      );
+    };
+    if (rawQ && typeof rawQ === "object") rawQ = extractFromObj(rawQ);
+    if (!rawQ && typeof b.question === "object") rawQ = extractFromObj(b.question);
+
+    // normalisation string
+    let question_id = rawQ != null ? String(rawQ).trim() : "";
+
+    // 2) Thème (ou backfill via question)
     let theme = pick(b, "theme", "topic", "category");
     const difficulty = pick(b, "difficulty", "level", "lvl") || "facile";
     const correct = toBool(pick(b, "correct", "is_correct", "good", "success", "result"));
     const response_time_ms = toNum(pick(b, "response_time_ms", "time_ms", "duration_ms", "elapsed_ms", "responseTimeMs"));
     const source = pick(b, "source", "origin") || "training";
 
-    // Backfill du thème si manquant (support _id, question_id, code, name)
-    if (!theme && question_id) {
-      const qid = String(question_id);
-      const or = [{ question_id: qid }, { code: qid }, { name: qid }];
-      if (mongoose.isValidObjectId(qid)) {
-        or.unshift({ _id: new mongoose.Types.ObjectId(qid) });
+    // 3) Canoniser le question_id contre la collection questions (support _id, question_id, code, name)
+    let canonicalQid = question_id;
+    if (question_id) {
+      const or = [{ question_id }, { code: question_id }, { name: question_id }, { slug: question_id }, { ref: question_id }];
+      if (mongoose.isValidObjectId(question_id)) {
+        or.unshift({ _id: new mongoose.Types.ObjectId(question_id) });
       }
       const qDoc = await mongoose.connection
         .collection("questions")
-        .findOne({ $or: or }, { projection: { theme: 1 } });
-      if (qDoc?.theme) theme = qDoc.theme;
+        .findOne({ $or: or }, { projection: { question_id: 1, theme: 1 } });
+
+      if (qDoc?.question_id) canonicalQid = String(qDoc.question_id);
+      if (!theme && qDoc?.theme) theme = qDoc.theme;
     }
 
-    if (!user_id || !question_id || !theme) {
-      return res.status(400).json({ success: false, message: "user_id, question_id, theme sont requis" });
+    // 4) Garde-fous : on refuse l’event si on n’a pas d’ID canonique
+    if (!user_id || !canonicalQid || !theme) {
+      return res.status(400).json({
+        success: false,
+        message: "user_id, question_id, theme requis",
+        debug: { user_id, canonicalQid, theme }
+      });
     }
 
     const now = new Date();
     const payload = {
       user_id: String(user_id),
-      question_id: String(question_id),
+      question_id: canonicalQid,                 // ✅ ID canonique aligné sur questions.question_id
       theme: String(theme),
       difficulty,
       correct,
@@ -480,7 +516,6 @@ async function recordTrainingEvent(req, res) {
       updatedAt: now,
     };
 
-    // Insert direct (tolère l’hétérogénéité historique de la collection)
     await mongoose.connection.collection("usersessions").insertOne(payload);
 
     prewarmRecommendations(String(user_id));
