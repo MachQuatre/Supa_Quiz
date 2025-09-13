@@ -91,58 +91,96 @@ async function createUserSession(req, res) {
 }
 
 /* ---------------------- Mettre à jour une UserSession ---------------------- */
-async function updateUserSession(req, res) {
+// Remplace la fonction existante par celle-ci
+exports.updateUserSession = async (req, res) => {
   try {
-    const { user_session_id } = req.params;
-    const { questions_played, score, completion_percentage, end_time } = req.body;
+    const { id } = req.params; // PUT /api/user-sessions/:id
+    const upd = {};
 
-    const safeScoreRaw = Number.isFinite(score) ? score : Number(score);
-    const safeScore = Number.isFinite(safeScoreRaw) ? safeScoreRaw : 0;
-
-    const updateDoc = {
-      score: safeScore,
-      end_time: end_time ? new Date(end_time) : new Date(),
+    // --- Helpers locaux ---
+    const toBool = (v) => v === true || v === 1 || v === '1' || v === 'true';
+    const toIntOrNull = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? Math.trunc(n) : null;
     };
-    if (Array.isArray(questions_played)) updateDoc.questions_played = questions_played;
-    if (completion_percentage !== undefined && completion_percentage !== null) {
-      updateDoc.completion_percentage = completion_percentage;
+
+    // 1) Champs simples (si présents)
+    const allowedSimple = ['score_total', 'duration_ms', 'ended_at', 'status'];
+    for (const k of allowedSimple) {
+      if (Object.prototype.hasOwnProperty.call(req.body, k)) {
+        upd[k] = req.body[k];
+      }
     }
 
-    const updated = await UserSession.findOneAndUpdate(
-      { user_session_id },                      // ✅ clé correcte
-      { $set: updateDoc },
-      { new: true }
+    // 2) Normalisation des questions jouées
+    if (Array.isArray(req.body?.questions_played)) {
+      const qp = [];
+
+      for (const raw of req.body.questions_played) {
+        if (!raw || typeof raw !== 'object') continue;
+
+        const item = {
+          // on considère "answered" true par défaut si non fourni
+          answered: raw.answered === false ? false : true,
+          is_correct: toBool(raw.is_correct),
+        };
+
+        // garder question_id UNIQUEMENT s'il est non vide
+        const qid = raw.question_id ?? raw.qid ?? raw.id ?? raw._id;
+        if (qid != null && String(qid).trim() !== '') {
+          item.question_id = String(qid);
+        }
+
+        const rt = toIntOrNull(raw.response_time_ms);
+        if (rt != null) item.response_time_ms = rt;
+
+        if (raw.theme) item.theme = String(raw.theme);
+        if (raw.difficulty) item.difficulty = String(raw.difficulty);
+
+        qp.push(item);
+      }
+
+      // dédoublonnage par question_id (on garde la dernière occurrence)
+      const seen = new Map(); // key: question_id, value: item
+      const finalQp = [];
+      for (const it of qp.reverse()) {
+        if (it.question_id) {
+          if (!seen.has(it.question_id)) seen.set(it.question_id, it);
+        } else {
+          // éléments sans question_id : on les conserve tels quels
+          finalQp.push(it);
+        }
+      }
+      // réassemble en remettant l'ordre initial approximatif
+      upd.questions_played = [...finalQp, ...Array.from(seen.values()).reverse()];
+    }
+    // 3) Fallback LEGACY: "answers": [0/1/true/false, ...]
+    else if (Array.isArray(req.body?.answers)) {
+      // ⚠️ NE PAS mettre question_id:null ici.
+      upd.questions_played = req.body.answers.map((v) => ({
+        answered: true,
+        is_correct: toBool(v),
+        response_time_ms: null,
+      }));
+    }
+
+    // 4) Mise à jour
+    const session = await UserSession.findByIdAndUpdate(
+      id,
+      { $set: upd },
+      { new: true, runValidators: true }
     );
-    if (!updated) return res.status(404).json({ message: "UserSession non trouvée" });
 
-    const playedList = Array.isArray(questions_played)
-      ? questions_played
-      : Array.isArray(updated.questions_played)
-      ? updated.questions_played
-      : [];
-    const totalPossible = playedList.length * 10;
-    const percentScore = totalPossible > 0 ? Math.round((safeScore / totalPossible) * 100) : 0;
-
-    const assignedBadges = await checkAndAssignBadges(
-      { user_id: updated.user_id, score_percent: percentScore, theme: updated.theme || null },
-      { UserBadge, Quiz }
-    );
-
-    // préchauffe les recos (après mise à jour)
-    prewarmRecommendations(updated.user_id);
-
-    return res.status(200).json({
-      message: "UserSession mise à jour",
-      session: updated,
-      user_total_score: undefined,   // pas calculé ici
-      score_percent: percentScore,
-      badges_awarded: assignedBadges,
-    });
-  } catch (error) {
-    console.error("Erreur updateUserSession:", error);
-    return res.status(500).json({ message: "Erreur mise à jour", error });
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'not_found' });
+    }
+    return res.json({ success: true, data: session });
+  } catch (err) {
+    console.error('updateUserSession error:', err);
+    return res.status(500).json({ success: false, error: 'server_error' });
   }
-}
+};
+
 
 /* ---------------------- Lister les sessions d’un utilisateur ---------------------- */
 async function getUserSessions(req, res) {
