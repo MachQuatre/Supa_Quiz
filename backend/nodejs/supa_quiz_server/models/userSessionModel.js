@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-/** Sous-doc pour une question jouée (flux type Game/Kahoot) */
+/** Sous-doc pour une question jouée (flux Game/Kahoot) */
 const QuestionPlayedSchema = new mongoose.Schema(
   {
     question_id: { type: String },          // id applicatif
@@ -17,15 +17,14 @@ const QuestionPlayedSchema = new mongoose.Schema(
  * Modèle "UserSession" polymorphe :
  * - Mode GameSession (partie complète): user_session_id, game_session_id, quiz_id, questions_played[], score...
  * - Mode Training (événement léger): user_id, question_id, theme, difficulty, correct, response_time_ms, source
- *   (les champs GameSession restent optionnels)
  */
 const UserSessionSchema = new mongoose.Schema(
   {
     /* ---- Identifiants communs ---- */
-    user_id: { type: String, required: true, index: true },
+    user_id: { type: String, required: true },   // index défini plus bas
 
     /* ---- Mode GameSession (partie structurée) ---- */
-    user_session_id: { type: String, index: true }, // UUID public de la session
+    user_session_id: { type: String },           // index défini plus bas
     game_session_id: { type: String },
     quiz_id: { type: String },
     status: {
@@ -43,18 +42,18 @@ const UserSessionSchema = new mongoose.Schema(
     streak_max: { type: Number },
 
     /* ---- Attributs communs / analytiques ---- */
-    theme: { type: String, index: true },
+    theme: { type: String },
     difficulty: { type: String },
 
     /* ---- Mode Training (événement léger, 1 question) ---- */
-    question_id: { type: String },          // pour l’événement d’entraînement
+    question_id: { type: String },
     correct: { type: Boolean },
     response_time_ms: { type: Number },
-    source: { type: String, default: "training", index: true }, // training|quiz|...
+    source: { type: String, default: "training" }, // training|quiz|...
   },
   {
     timestamps: true,                // createdAt / updatedAt
-    collection: "usersessions",      // conserve ta collection existante
+    collection: "usersessions",      // colle à ta collection existante
   }
 );
 
@@ -68,10 +67,10 @@ UserSessionSchema.pre("validate", function (next) {
   next();
 });
 
-/** Index utiles (coexistent) */
+/** Index utiles (évite les doublons : pas de `index:true` sur les champs ci-dessus) */
 UserSessionSchema.index({ user_session_id: 1 });
 UserSessionSchema.index({ user_id: 1 });
 UserSessionSchema.index({ user_id: 1, theme: 1, createdAt: -1 });
-UserSessionSchema.index({ user_id: 1, end_time: -1, start_time: -1 }); // pour listes récentes
+UserSessionSchema.index({ user_id: 1, end_time: -1, start_time: -1 });
 
 module.exports = mongoose.model("UserSession", UserSessionSchema);
