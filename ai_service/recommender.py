@@ -279,27 +279,31 @@ class Recommender:
     def recommended_questions(self, user_id: str, limit: int = 10, mix_ratio: float = 0.5) -> List[Dict[str, Any]]:
         """
         mix_ratio ~ proportion de 'révision' vs 'challenge' (0.5 = 50/50)
-        - Révision: cible la difficulté adaptée au niveau courant
-        - Challenge: un cran au-dessus si dispo
-        - Exclut les questions déjà vues (Game + Training)
-        - Exclut les questions maîtrisées récemment (>= 2 bonnes réponses parmi les 6 derniers events)
-        - Évite 'cold_start' si l'utilisateur a déjà de l'historique
+        Règles:
+        - Exclut les questions déjà VUES (seen_all) et les “maîtrisées récemment”
+            (>=2 bonnes parmi les 6 derniers events)
+        - Les questions “vues très récemment” (recent_seen) ne sont filtrées
+            qu’EN FIN de sélection, et relâchées si ça vide tout
+        - Fallbacks progressifs pour garantir au moins `limit` items
         """
         stats = self.user_theme_stats(user_id)
         theme_by_name = {s["theme"]: s for s in stats}
         ordered_themes = list(theme_by_name.keys())
 
-        # Construire l'ensemble des questions à exclure
-        seen = _all_seen_question_ids(self.db, user_id)
-        seen |= _recent_mastered_question_ids(self.db, user_id, correct_min=2, window_events=6)
-        recent_seen = _recent_seen_question_ids(self.db, user_id, last_events=20)
-        seen |= recent_seen  # anti-répétition courte
+        # --- Exclusions “dures”
+        seen_all = _all_seen_question_ids(self.db, user_id)
+        mastered_recent = _recent_mastered_question_ids(self.db, user_id, correct_min=2, window_events=6)
+        exclude_hard = set(seen_all) | set(mastered_recent)
+
+        # --- Exclusion “douce” (anti-répétition courte) appliquée A LA FIN
+        recent_seen = _recent_seen_question_ids(self.db, user_id, last_events=10)
 
         pool_revision, pool_challenge = [], []
 
         def harder(d: str) -> str:
             return {"facile": "moyen", "moyen": "difficile"}.get(d, "difficile")
 
+        # 1) Paniers basés sur themes + maîtrise
         for theme in ordered_themes:
             st = theme_by_name[theme]
             mastery = st["mastery"]
@@ -309,7 +313,7 @@ class Recommender:
             for q in self.db.questions.find({
                 "theme": theme,
                 "difficulty": diff,
-                "question_id": {"$nin": list(seen)},
+                "question_id": {"$nin": list(exclude_hard)},
             }, {"_id": 0}):
                 q = dict(q)
                 q["reason_type"] = "revision"
@@ -323,7 +327,7 @@ class Recommender:
             for q in self.db.questions.find({
                 "theme": theme,
                 "difficulty": hd,
-                "question_id": {"$nin": list(seen)},
+                "question_id": {"$nin": list(exclude_hard)},
             }, {"_id": 0}):
                 q = dict(q)
                 q["reason_type"] = "challenge"
@@ -332,19 +336,21 @@ class Recommender:
                 q["target_difficulty"] = hd
                 pool_challenge.append(q)
 
-        # Cas de repli : aucune question en révision/challenge
+        # 2) Fallback #1 — rien dans révision/challenge
         if not pool_revision and not pool_challenge:
-            # Si l'utilisateur a déjà un historique, éviter 'cold_start'
-            has_history = len(seen) > 0
+            # si l'utilisateur a de l'historique, évite "cold_start"
+            has_history = any(iter_user_history(self.db, user_id))
             base_query = {"difficulty": "facile"}
             if has_history:
                 played_themes = {e.get("theme") for e in iter_user_history(self.db, user_id) if e.get("theme")}
                 if played_themes:
                     base_query = {"difficulty": "facile", "theme": {"$in": list(played_themes)}}
 
-            tmp = [q for q in self.db.questions.find(base_query, {"_id": 0}) if q["question_id"] not in seen]
-            random.shuffle(tmp)
-            for q in tmp[:limit]:
+            candidates = [q for q in self.db.questions.find(base_query, {"_id": 0})
+                        if q["question_id"] not in exclude_hard]
+            random.shuffle(candidates)
+            out = []
+            for q in candidates[:limit]:
                 if has_history:
                     q["reason_type"] = "revision"
                     q["reason"] = "Révision douce sur vos thèmes joués."
@@ -353,19 +359,34 @@ class Recommender:
                     q["reason"] = "Nouveau joueur : démarrage en facile."
                 q["theme_mastery"] = None
                 q["target_difficulty"] = "facile"
-            return tmp[:limit]
+                out.append(q)
 
+            # si malgré tout c'est vide, relâche encore : n'exclure que “maîtrisées récemment”
+            if not out:
+                candidates = [q for q in self.db.questions.find(base_query, {"_id": 0})
+                            if q["question_id"] not in mastered_recent]
+                random.shuffle(candidates)
+                out = candidates[:limit]
+                for q in out:
+                    q["reason_type"] = "refresh"
+                    q["reason"] = "Relance sans exclure tout l'historique."
+                    q["theme_mastery"] = None
+                    q["target_difficulty"] = q.get("difficulty")
+
+            return out[:limit]
+
+        # 3) Mix révision/challenge
         random.shuffle(pool_revision)
         random.shuffle(pool_challenge)
-
         k_rev = int(round(limit * mix_ratio))
         k_ch  = limit - k_rev
         recos = pool_revision[:k_rev] + pool_challenge[:k_ch]
 
+        # Complément si insuffisant
         if len(recos) < limit:
             missing = limit - len(recos)
             extra = list(self.db.questions.find(
-                {"question_id": {"$nin": list(seen)}},
+                {"question_id": {"$nin": list(exclude_hard)}},
                 {"_id": 0}
             ).limit(missing * 2))
             random.shuffle(extra)
@@ -376,7 +397,7 @@ class Recommender:
                 q["target_difficulty"] = q.get("difficulty")
             recos += extra[:missing]
 
-        # Dédoublonnage — garder la 1ère occurrence
+        # Dédoublonner
         uniq = {}
         for q in recos:
             qid = q["question_id"]
@@ -384,80 +405,39 @@ class Recommender:
                 uniq[qid] = q
         recos = list(uniq.values())
 
+        # 4) Filtre anti-répétition courte (DOUX) + relâchement si ça vide
+        filtered = [q for q in recos if q["question_id"] not in recent_seen]
+        if len(filtered) >= max(1, min(limit, len(recos)//2)):
+            recos = filtered  # ok
+        # sinon : on garde recos tel quel (on n'affame pas)
+
         # Diversité par thème
         recos = _diversify(recos, max_per_theme=2)
         return recos[:limit]
 
-    # ----------------- DKT ------------------
-    _dkt_loaded = False
-    _dkt_model = None
-    _dkt_meta = None
+        def _dkt_predict_vector(self, seq):
+            """
+            Given a user sequence, return vector p(correct) for next step for all skills (size K).
+            If no history, return uniform 0.6 baseline.
+            """
+            K = self._dkt_meta["num_skills"]
+            if len(seq) < 1:
+                return np.full(K, 0.6, dtype=np.float32)
 
-    def _load_dkt(self):
-        if self._dkt_loaded:
-            return
-        model_dir = os.getenv("MODEL_DIR", "model")
-        meta_path = os.path.join(model_dir, "dkt_meta.json")
-        model_path = os.path.join(model_dir, "dkt.pt")
-        if not (os.path.exists(meta_path) and os.path.exists(model_path)):
-            raise RuntimeError("DKT model not trained yet. Call /train/dkt first.")
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta = json.load(f)
-        model = DKT(num_skills=meta["num_skills"])
-        state = torch.load(model_path, map_location="cpu")
-        model.load_state_dict(state)
-        model.eval()
-        self._dkt_model = model
-        self._dkt_meta = meta
-        self._dkt_loaded = True
-
-    def _user_sequence_for_dkt(self, user_id: str):
-        """
-        Construit la séquence utilisateur [(skill_idx, correct)] triée par temps.
-        Basée sur la collection responses (flux Game), comme avant.
-        """
-        meta = self._dkt_meta
-        skill2idx = meta["skill2idx"]
-        pipeline = [
-            {"$lookup": { "from": "usersessions", "localField": "session_id", "foreignField": "user_session_id", "as": "us" }},
-            {"$unwind": "$us"},
-            {"$match": {"us.user_id": user_id}},
-            {"$lookup": { "from": "questions", "localField": "question_id", "foreignField": "question_id", "as": "q" }},
-            {"$unwind": "$q"},
-            {"$project": {"answered_at": 1, "is_correct": 1, "theme": "$q.theme", "difficulty": "$q.difficulty"}},
-            {"$sort": {"answered_at": 1}}
-        ]
-        seq = []
-        for r in self.db.responses.aggregate(pipeline):
-            key = f"{r['theme']}|||{r['difficulty']}"
-            if key not in skill2idx:
-                continue
-            seq.append((skill2idx[key], 1 if r.get("is_correct") else 0))
-        return seq
-
-    def _dkt_predict_vector(self, seq):
-        """
-        Given a user sequence, return vector p(correct) for next step for all skills (size K).
-        If no history, return uniform 0.6 baseline.
-        """
-        K = self._dkt_meta["num_skills"]
-        if len(seq) < 1:
-            return np.full(K, 0.6, dtype=np.float32)
-
-        # Build X of shape [1, T, 2K]
-        T = len(seq)
-        x = np.zeros((1, T, 2*K), dtype=np.float32)
-        for t in range(T):
-            s, c = seq[t]
-            if c == 1:
-                x[0, t, s] = 1.0
-            else:
-                x[0, t, K + s] = 1.0
-        x = torch.from_numpy(x)
-        with torch.no_grad():
-            yhat = self._dkt_model(x)   # [1, T, K]
-            p = yhat[0, -1, :].detach().cpu().numpy()  # last time step
-        return p
+            # Build X of shape [1, T, 2K]
+            T = len(seq)
+            x = np.zeros((1, T, 2*K), dtype=np.float32)
+            for t in range(T):
+                s, c = seq[t]
+                if c == 1:
+                    x[0, t, s] = 1.0
+                else:
+                    x[0, t, K + s] = 1.0
+            x = torch.from_numpy(x)
+            with torch.no_grad():
+                yhat = self._dkt_model(x)   # [1, T, K]
+                p = yhat[0, -1, :].detach().cpu().numpy()  # last time step
+            return p
 
     def recommended_questions_dkt(self, user_id: str, limit: int = 10, mix_ratio: float = 0.5):
         """
