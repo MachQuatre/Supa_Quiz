@@ -7,193 +7,259 @@ import json
 import torch
 import numpy as np
 from models.dkt import DKT
-import datetime as dt
 
-
+# ----------------------- Config -----------------------
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-DB_NAME   = os.getenv("MONGO_DB", "quiz_app")
-WINDOW    = int(os.getenv("ANALYSIS_WINDOW_DAYS", "7"))
+DB_NAME_ENV = os.getenv("MONGO_DB", "").strip()
+WINDOW = int(os.getenv("ANALYSIS_WINDOW_DAYS", "7"))  # fenêtre “récent” en jours
 
-def _recent_seen_question_ids(db, user_id: str, last_sessions: int = 3):
-    """Exclut les questions vues dans les N dernières sessions."""
-    # récupérer N dernières sessions
-    sessions = list(db.usersessions.find(
-        {"user_id": user_id},
-        {"_id": 0, "user_session_id": 1, "started_at": 1}
-    ).sort("started_at", -1).limit(last_sessions))
-    sids = [s["user_session_id"] for s in sessions]
+# ----------------------- Connexion DB (robuste) -----------------------
+def _connect_db():
+    """
+    Retourne (client, db) en gérant les 3 cas:
+      1) MONGO_DB non vide  -> utilise ce nom
+      2) MONGO_URI avec /db -> utilise client.get_default_database()
+      3) fallback           -> 'quiz_app'
+    """
+    client = MongoClient(MONGO_URI)
+    if DB_NAME_ENV:
+        return client, client[DB_NAME_ENV]
+    try:
+        db = client.get_default_database()
+        if db is not None:
+            return client, db
+    except Exception:
+        pass
+    return client, client["quiz_app"]
+
+# ----------------------- Helpers -----------------------
+def _as_dt(x):
+    """Parse des dates hétérogènes en datetime (UTC) ou None."""
+    if isinstance(x, dt.datetime):
+        return x
+    if x is None:
+        return None
+    s = str(x)
+    try:
+        return dt.datetime.fromisoformat(s.replace("Z", ""))
+    except Exception:
+        return None
+
+def _norm_bool(v) -> bool:
+    """Convertit diverses représentations en booléen."""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return v != 0
+    return str(v).strip().lower() in ("1", "true", "yes", "ok", "correct", "vrai")
+
+def _normalize_event(doc: Dict[str, Any], qp: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Normalise un événement d'historique utilisateur sur un format unique :
+    { theme, difficulty, question_id, correct, response_time_ms, ts }
+
+    - doc : document de la collection usersessions
+    - qp  : item de questions_played (mode Game/Kahoot) OU None (mode Training léger)
+    """
+    theme = doc.get("theme")
+    difficulty = doc.get("difficulty")
+    ts = doc.get("createdAt") or doc.get("end_time") or doc.get("start_time")
+
+    if qp is not None:
+        # Mode Game/Kahoot : info portée par le sous-doc
+        qid = qp.get("question_id")
+        corr = qp.get("is_correct")
+        rt = qp.get("response_time_ms")
+        theme = qp.get("theme") or theme
+    else:
+        # Mode Training (événement léger)
+        qid = doc.get("question_id")
+        corr = doc.get("correct")
+        rt = doc.get("response_time_ms")
+
+    return {
+        "theme": theme,
+        "difficulty": difficulty,
+        "question_id": qid,
+        "correct": _norm_bool(corr),
+        "response_time_ms": (rt if isinstance(rt, (int, float)) else None),
+        "ts": _as_dt(ts),
+    }
+
+def iter_user_history(db, user_id: str):
+    """
+    Itère l'historique fusionné de l'utilisateur :
+      - sessions complètes avec questions_played[] (Game/Kahoot)
+      - événements 'training' légers (user-sessions/record)
+    """
+    coll = db["usersessions"]
+    cur = coll.find(
+        {"user_id": str(user_id)},
+        {
+            "theme": 1, "difficulty": 1,
+            "question_id": 1, "correct": 1, "response_time_ms": 1,
+            "questions_played": 1,
+            "createdAt": 1, "end_time": 1, "start_time": 1,
+            "source": 1,
+        },
+    )
+    for doc in cur:
+        qps = doc.get("questions_played") or []
+        if qps:
+            for qp in qps:
+                yield _normalize_event(doc, qp=qp)
+        else:
+            if doc.get("question_id"):
+                yield _normalize_event(doc, qp=None)
+
+def _all_seen_question_ids(db, user_id: str) -> set:
+    """Toutes les questions vues (Game + Training)."""
     seen = set()
-    if sids:
-        for r in db.responses.find({"session_id": {"$in": sids}}, {"_id":0,"question_id":1}):
-            if r.get("question_id"): seen.add(r["question_id"])
+    for ev in iter_user_history(db, user_id):
+        if ev.get("question_id"):
+            seen.add(ev["question_id"])
     return seen
+
+def _recent_seen_question_ids(db, user_id: str, last_events: int = 20) -> set:
+    """Questions vues sur les N derniers événements (Game + Training)."""
+    events = list(iter_user_history(db, user_id))
+    events.sort(key=lambda e: (e["ts"] or dt.datetime.min), reverse=True)
+    s = set()
+    for ev in events[:last_events]:
+        if ev.get("question_id"):
+            s.add(ev["question_id"])
+    return s
+
+def _recent_mastered_question_ids(db, user_id: str, correct_min: int = 2, window_events: int = 6) -> set:
+    """
+    Questions répondues correctement au moins `correct_min` fois
+    sur les `window_events` derniers événements (Game + Training).
+    => On les considère ‘maîtrisées récemment’ et on les exclut.
+    """
+    events = list(iter_user_history(db, user_id))
+    events.sort(key=lambda e: (e.get("ts") or dt.datetime.min), reverse=True)
+    counts = {}
+    for ev in events[:window_events]:
+        qid = ev.get("question_id")
+        if not qid:
+            continue
+        if ev.get("correct") is True:
+            counts[qid] = counts.get(qid, 0) + 1
+    return {qid for qid, c in counts.items() if c >= correct_min}
 
 def _diversify(items, max_per_theme: int = 2):
     """Ré-ordonne/filtre pour éviter 5 items du même thème à la suite."""
     out, count = [], {}
     for q in items:
-        t = q.get("theme","?")
-        if count.get(t,0) < max_per_theme:
+        t = q.get("theme", "?")
+        if count.get(t, 0) < max_per_theme:
             out.append(q)
-            count[t] = count.get(t,0)+1
-    # si on a trop peu d'items, on complète avec le reste
+            count[t] = count.get(t, 0) + 1
+    # si on a trop peu d’items, on complète avec le reste
     if len(out) < len(items):
         for q in items:
             if q not in out:
                 out.append(q)
-                if len(out) >= len(items): break
+                if len(out) >= len(items):
+                    break
     return out
 
+# ----------------------- Recommender -----------------------
 class Recommender:
     """
-    Lit directement MongoDB (mêmes collections que le backend Node) :
-      - questions    : {question_id, theme, difficulty}
-      - usersessions : {user_session_id, user_id, started_at}
-      - responses    : {session_id, question_id, is_correct, response_time, answered_at}
-    Jointure : responses.session_id -> usersessions.user_session_id
+    Lit directement MongoDB (mêmes collections que le backend Node).
+    Désormais, les statistiques et la 'seen list' tiennent compte :
+      - des sessions complètes (questions_played[])
+      - des événements d'entraînement (question_id, correct, response_time_ms)
     """
 
     def __init__(self):
-        self.client = MongoClient(MONGO_URI)
-        self.db = self.client[DB_NAME]
+        self.client, self.db = _connect_db()
 
     # ----------------- ANALYSE PAR THEME -----------------
     def user_theme_stats(self, user_id: str) -> List[Dict[str, Any]]:
         """
         Taux de réussite, nb d’essais, temps moyen, et tendance récente par thème.
+        Basé sur l'historique fusionné (Game + Training).
+
         Tendance = delta du taux de réussite entre
           - fenêtre récente: [now - WINDOW, now]
           - fenêtre précédente: ]now - 2*WINDOW, now - WINDOW]
         """
         now = dt.datetime.utcnow()
         recent_from = now - dt.timedelta(days=WINDOW)
-        prev_from   = now - dt.timedelta(days=2*WINDOW)
+        prev_from   = now - dt.timedelta(days=2 * WINDOW)
         prev_to     = recent_from
 
-        # pipeline de base: join user + join question
-        base_lookup = [
-            {"$lookup": {
-                "from": "usersessions",
-                "localField": "session_id",
-                "foreignField": "user_session_id",
-                "as": "us"
-            }},
-            {"$unwind": "$us"},
-            {"$match": {"us.user_id": user_id}},
-            {"$lookup": {
-                "from": "questions",
-                "localField": "question_id",
-                "foreignField": "question_id",
-                "as": "q"
-            }},
-            {"$unwind": "$q"},
-        ]
+        evs = list(iter_user_history(self.db, user_id))
 
-        # Global (tout l’historique) -> base pour attempts/avg_time/success_rate
-        global_pipe = base_lookup + [
-            {"$group": {
-                "_id": "$q.theme",
-                "attempts": {"$sum": 1},
-                "correct":  {"$sum": {"$cond": ["$is_correct", 1, 0]}},
-                "avg_time_ms": {"$avg": "$response_time"}
-            }},
-            {"$project": {
-                "_id": 0,
-                "theme": "$_id",
-                "attempts": 1,
-                "correct": 1,
-                "success_rate": {
-                    "$cond": [
-                        {"$gt": ["$attempts", 0]},
-                        {"$divide": ["$correct", "$attempts"]},
-                        0
-                    ]
-                },
-                "avg_time_ms": 1
-            }}
-        ]
+        g_attempts, g_correct, g_time = {}, {}, {}
+        r_attempts, r_correct = {}, {}
+        p_attempts, p_correct = {}, {}
 
-        # Fenêtre récente
-        recent_pipe = base_lookup + [
-            {"$match": {"answered_at": {"$gte": recent_from, "$lte": now}}},
-            {"$group": {
-                "_id": "$q.theme",
-                "attempts_recent": {"$sum": 1},
-                "correct_recent":  {"$sum": {"$cond": ["$is_correct", 1, 0]}}
-            }},
-            {"$project": {
-                "_id": 0,
-                "theme": "$_id",
-                "success_rate_recent": {
-                    "$cond": [
-                        {"$gt": ["$attempts_recent", 0]},
-                        {"$divide": ["$correct_recent", "$attempts_recent"]},
-                        None
-                    ]
-                }
-            }}
-        ]
+        for e in evs:
+            theme = e.get("theme")
+            if not theme:
+                continue
+            ts = e.get("ts") or now
+            corr = bool(e.get("correct", False))
+            rt = e.get("response_time_ms")
 
-        # Fenêtre précédente
-        prev_pipe = base_lookup + [
-            {"$match": {"answered_at": {"$gt": prev_from, "$lte": prev_to}}},
-            {"$group": {
-                "_id": "$q.theme",
-                "attempts_prev": {"$sum": 1},
-                "correct_prev":  {"$sum": {"$cond": ["$is_correct", 1, 0]}}
-            }},
-            {"$project": {
-                "_id": 0,
-                "theme": "$_id",
-                "success_rate_prev": {
-                    "$cond": [
-                        {"$gt": ["$attempts_prev", 0]},
-                        {"$divide": ["$correct_prev", "$attempts_prev"]},
-                        None
-                    ]
-                }
-            }}
-        ]
+            # Global
+            g_attempts[theme] = g_attempts.get(theme, 0) + 1
+            if corr:
+                g_correct[theme] = g_correct.get(theme, 0) + 1
+            if isinstance(rt, (int, float)):
+                g_time[theme] = g_time.get(theme, 0.0) + float(rt)
 
-        global_stats = {d["theme"]: d for d in self.db.responses.aggregate(global_pipe)}
-        recent_stats = {d["theme"]: d for d in self.db.responses.aggregate(recent_pipe)}
-        prev_stats   = {d["theme"]: d for d in self.db.responses.aggregate(prev_pipe)}
+            # Récente
+            if recent_from <= ts <= now:
+                r_attempts[theme] = r_attempts.get(theme, 0) + 1
+                if corr:
+                    r_correct[theme] = r_correct.get(theme, 0) + 1
 
-        # merge
-        themes = set(global_stats) | set(recent_stats) | set(prev_stats)
+            # Précédente
+            if prev_from < ts <= prev_to:
+                p_attempts[theme] = p_attempts.get(theme, 0) + 1
+                if corr:
+                    p_correct[theme] = p_correct.get(theme, 0) + 1
+
+        themes = set(g_attempts.keys()) | set(r_attempts.keys()) | set(p_attempts.keys())
         out = []
         for t in themes:
-            g = global_stats.get(t, {})
-            r = recent_stats.get(t, {})
-            p = prev_stats.get(t, {})
+            attempts = int(g_attempts.get(t, 0))
+            correct  = int(g_correct.get(t, 0))
+            avg_time = (g_time.get(t, 0.0) / attempts) if attempts > 0 else 0.0
+            sr = (correct / attempts) if attempts > 0 else 0.0
 
-            sr_recent = r.get("success_rate_recent")
-            sr_prev   = p.get("success_rate_prev")
+            attempts_r = int(r_attempts.get(t, 0))
+            correct_r  = int(r_correct.get(t, 0))
+            sr_recent  = (attempts_r and (correct_r / attempts_r)) or None
 
-            # tendance = recent - prev (si les deux existent), sinon None
+            attempts_p = int(p_attempts.get(t, 0))
+            correct_p  = int(p_correct.get(t, 0))
+            sr_prev    = (attempts_p and (correct_p / attempts_p)) or None
+
             trend = None
             if sr_recent is not None and sr_prev is not None:
                 trend = float(sr_recent) - float(sr_prev)
 
-            # “maîtrise” = combiner précision globale et temps moyen (simple)
-            sr = float(g.get("success_rate", 0.0))
-            avg_time = float(g.get("avg_time_ms", 0.0) or 0.0)
+            # “maîtrise” simple : combine précision et temps (borne 10s)
             time_factor = 1.0
             if avg_time > 0:
-                # 10s ~ 10000ms ; borne à [0.3, 1.0]
                 time_factor = max(0.3, min(1.0, 10000.0 / avg_time))
             mastery = 0.7 * sr + 0.3 * sr * time_factor
 
             out.append({
                 "theme": t,
-                "attempts": int(g.get("attempts", 0)),
-                "correct": int(g.get("correct", 0)),
-                "success_rate": round(sr, 4),
-                "avg_time_ms": round(avg_time, 1) if avg_time else None,
-                "success_rate_recent": round(sr_recent, 4) if sr_recent is not None else None,
-                "success_rate_prev":   round(sr_prev, 4) if sr_prev is not None else None,
-                "trend_delta": round(trend, 4) if trend is not None else None,
-                "mastery": round(mastery, 4),
+                "attempts": attempts,
+                "correct": correct,
+                "success_rate": round(float(sr), 4),
+                "avg_time_ms": round(float(avg_time), 1) if avg_time else None,
+                "success_rate_recent": round(float(sr_recent), 4) if sr_recent is not None else None,
+                "success_rate_prev":   round(float(sr_prev), 4)   if sr_prev is not None else None,
+                "trend_delta": round(float(trend), 4) if trend is not None else None,
+                "mastery": round(float(mastery), 4),
             })
 
         # ordonner : plus faible maîtrise en premier, puis plus faible succès récent
@@ -209,43 +275,35 @@ class Recommender:
             return "moyen"
         return "difficile"
 
-    # ----------------- RECOMMANDATIONS ------------------
+    # ----------------- RECOMMANDATIONS (heuristiques) ------------------
     def recommended_questions(self, user_id: str, limit: int = 10, mix_ratio: float = 0.5) -> List[Dict[str, Any]]:
         """
         mix_ratio ~ proportion de 'révision' vs 'challenge' (0.5 = 50/50)
-        - Révision: cible la difficulté adaptée au niveau courant
-        - Challenge: un cran au-dessus si dispo
-        - Exclut les questions déjà vues
+        Règles:
+        - Exclut les questions déjà VUES (seen_all) et les “maîtrisées récemment”
+            (>=2 bonnes parmi les 6 derniers events)
+        - Les questions “vues très récemment” (recent_seen) ne sont filtrées
+            qu’EN FIN de sélection, et relâchées si ça vide tout
+        - Fallbacks progressifs pour garantir au moins `limit` items
         """
         stats = self.user_theme_stats(user_id)
         theme_by_name = {s["theme"]: s for s in stats}
         ordered_themes = list(theme_by_name.keys())
 
-        # Construire l'ensemble des questions vues
-        seen = set()
-        seen_pipe = [
-            {"$lookup": {
-                "from": "usersessions",
-                "localField": "session_id",
-                "foreignField": "user_session_id",
-                "as": "us"
-            }},
-            {"$unwind": "$us"},
-            {"$match": {"us.user_id": user_id}},
-            {"$group": {"_id": "$question_id"}}
-        ]
-        for r in self.db.responses.aggregate(seen_pipe):
-            if r["_id"]:
-                seen.add(r["_id"])
+        # --- Exclusions “dures”
+        seen_all = _all_seen_question_ids(self.db, user_id)
+        mastered_recent = _recent_mastered_question_ids(self.db, user_id, correct_min=2, window_events=6)
+        exclude_hard = set(seen_all) | set(mastered_recent)
 
-        # --- après avoir calculé: stats/theme_by_name/ordered_themes/seen ... ---
+        # --- Exclusion “douce” (anti-répétition courte) appliquée A LA FIN
+        recent_seen = _recent_seen_question_ids(self.db, user_id, last_events=10)
 
-        pool_revision = []
-        pool_challenge = []
+        pool_revision, pool_challenge = [], []
 
         def harder(d: str) -> str:
             return {"facile": "moyen", "moyen": "difficile"}.get(d, "difficile")
 
+        # 1) Paniers basés sur themes + maîtrise
         for theme in ordered_themes:
             st = theme_by_name[theme]
             mastery = st["mastery"]
@@ -255,7 +313,7 @@ class Recommender:
             for q in self.db.questions.find({
                 "theme": theme,
                 "difficulty": diff,
-                "question_id": {"$nin": list(seen)}
+                "question_id": {"$nin": list(exclude_hard)},
             }, {"_id": 0}):
                 q = dict(q)
                 q["reason_type"] = "revision"
@@ -269,7 +327,7 @@ class Recommender:
             for q in self.db.questions.find({
                 "theme": theme,
                 "difficulty": hd,
-                "question_id": {"$nin": list(seen)}
+                "question_id": {"$nin": list(exclude_hard)},
             }, {"_id": 0}):
                 q = dict(q)
                 q["reason_type"] = "challenge"
@@ -278,28 +336,57 @@ class Recommender:
                 q["target_difficulty"] = hd
                 pool_challenge.append(q)
 
-        # Cas “nouveau joueur”
+        # 2) Fallback #1 — rien dans révision/challenge
         if not pool_revision and not pool_challenge:
-            tmp = list(self.db.questions.find({"difficulty": "facile"}, {"_id": 0}).limit(limit * 2))
-            random.shuffle(tmp)
-            for q in tmp[:limit]:
-                q["reason_type"] = "cold_start"
-                q["reason"] = "Nouveau joueur : démarrage en facile."
+            # si l'utilisateur a de l'historique, évite "cold_start"
+            has_history = any(iter_user_history(self.db, user_id))
+            base_query = {"difficulty": "facile"}
+            if has_history:
+                played_themes = {e.get("theme") for e in iter_user_history(self.db, user_id) if e.get("theme")}
+                if played_themes:
+                    base_query = {"difficulty": "facile", "theme": {"$in": list(played_themes)}}
+
+            candidates = [q for q in self.db.questions.find(base_query, {"_id": 0})
+                        if q["question_id"] not in exclude_hard]
+            random.shuffle(candidates)
+            out = []
+            for q in candidates[:limit]:
+                if has_history:
+                    q["reason_type"] = "revision"
+                    q["reason"] = "Révision douce sur vos thèmes joués."
+                else:
+                    q["reason_type"] = "cold_start"
+                    q["reason"] = "Nouveau joueur : démarrage en facile."
                 q["theme_mastery"] = None
                 q["target_difficulty"] = "facile"
-            return tmp[:limit]
+                out.append(q)
 
+            # si malgré tout c'est vide, relâche encore : n'exclure que “maîtrisées récemment”
+            if not out:
+                candidates = [q for q in self.db.questions.find(base_query, {"_id": 0})
+                            if q["question_id"] not in mastered_recent]
+                random.shuffle(candidates)
+                out = candidates[:limit]
+                for q in out:
+                    q["reason_type"] = "refresh"
+                    q["reason"] = "Relance sans exclure tout l'historique."
+                    q["theme_mastery"] = None
+                    q["target_difficulty"] = q.get("difficulty")
+
+            return out[:limit]
+
+        # 3) Mix révision/challenge
         random.shuffle(pool_revision)
         random.shuffle(pool_challenge)
-
         k_rev = int(round(limit * mix_ratio))
         k_ch  = limit - k_rev
         recos = pool_revision[:k_rev] + pool_challenge[:k_ch]
 
+        # Complément si insuffisant
         if len(recos) < limit:
             missing = limit - len(recos)
             extra = list(self.db.questions.find(
-                {"question_id": {"$nin": list(seen)}},
+                {"question_id": {"$nin": list(exclude_hard)}},
                 {"_id": 0}
             ).limit(missing * 2))
             random.shuffle(extra)
@@ -310,7 +397,7 @@ class Recommender:
                 q["target_difficulty"] = q.get("difficulty")
             recos += extra[:missing]
 
-        # Dédoublonnage — garder la 1ère occurrence (préférence à "revision" arrivée en premier)
+        # Dédoublonner
         uniq = {}
         for q in recos:
             qid = q["question_id"]
@@ -318,84 +405,39 @@ class Recommender:
                 uniq[qid] = q
         recos = list(uniq.values())
 
-        # Anti-répétition N dernières sessions — inutile si 'seen' exclut déjà TOUT l'historique
-        recent_seen = _recent_seen_question_ids(self.db, user_id, last_sessions=3)
-        # Ici ce filtre ne changera rien car 'seen' exclut déjà tout l'historique.
-        recos = [q for q in recos if q["question_id"] not in recent_seen]
+        # 4) Filtre anti-répétition courte (DOUX) + relâchement si ça vide
+        filtered = [q for q in recos if q["question_id"] not in recent_seen]
+        if len(filtered) >= max(1, min(limit, len(recos)//2)):
+            recos = filtered  # ok
+        # sinon : on garde recos tel quel (on n'affame pas)
 
         # Diversité par thème
         recos = _diversify(recos, max_per_theme=2)
-
         return recos[:limit]
 
+        def _dkt_predict_vector(self, seq):
+            """
+            Given a user sequence, return vector p(correct) for next step for all skills (size K).
+            If no history, return uniform 0.6 baseline.
+            """
+            K = self._dkt_meta["num_skills"]
+            if len(seq) < 1:
+                return np.full(K, 0.6, dtype=np.float32)
 
-    # cache modèle DKT
-    _dkt_loaded = False
-    _dkt_model = None
-    _dkt_meta = None
-
-    def _load_dkt(self):
-        if self._dkt_loaded:
-            return
-        model_dir = os.getenv("MODEL_DIR", "model")
-        meta_path = os.path.join(model_dir, "dkt_meta.json")
-        model_path = os.path.join(model_dir, "dkt.pt")
-        if not (os.path.exists(meta_path) and os.path.exists(model_path)):
-            raise RuntimeError("DKT model not trained yet. Call /train/dkt first.")
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta = json.load(f)
-        model = DKT(num_skills=meta["num_skills"])
-        state = torch.load(model_path, map_location="cpu")
-        model.load_state_dict(state)
-        model.eval()
-        self._dkt_model = model
-        self._dkt_meta = meta
-        self._dkt_loaded = True
-
-    def _user_sequence_for_dkt(self, user_id: str):
-        """Build single user sequence [(skill_idx, correct)] ordered by time."""
-        meta = self._dkt_meta
-        skill2idx = meta["skill2idx"]
-        pipeline = [
-            {"$lookup": { "from": "usersessions", "localField": "session_id", "foreignField": "user_session_id", "as": "us" }},
-            {"$unwind": "$us"},
-            {"$match": {"us.user_id": user_id}},
-            {"$lookup": { "from": "questions", "localField": "question_id", "foreignField": "question_id", "as": "q" }},
-            {"$unwind": "$q"},
-            {"$project": {"answered_at": 1, "is_correct": 1, "theme": "$q.theme", "difficulty": "$q.difficulty"}},
-            {"$sort": {"answered_at": 1}}
-        ]
-        seq = []
-        for r in self.db.responses.aggregate(pipeline):
-            key = f"{r['theme']}|||{r['difficulty']}"
-            if key not in skill2idx:  # should not happen
-                continue
-            seq.append((skill2idx[key], 1 if r.get("is_correct") else 0))
-        return seq
-
-    def _dkt_predict_vector(self, seq):
-        """
-        Given a user sequence, return vector p(correct) for next step for all skills (size K).
-        If no history, return uniform 0.6 baseline.
-        """
-        K = self._dkt_meta["num_skills"]
-        if len(seq) < 1:
-            return np.full(K, 0.6, dtype=np.float32)
-
-        # Build X of shape [1, T, 2K]
-        T = len(seq)
-        x = np.zeros((1, T, 2*K), dtype=np.float32)
-        for t in range(T):
-            s, c = seq[t]
-            if c == 1:
-                x[0, t, s] = 1.0
-            else:
-                x[0, t, K + s] = 1.0
-        x = torch.from_numpy(x)
-        with torch.no_grad():
-            yhat = self._dkt_model(x)   # [1, T, K]
-            p = yhat[0, -1, :].detach().cpu().numpy()  # last time step
-        return p
+            # Build X of shape [1, T, 2K]
+            T = len(seq)
+            x = np.zeros((1, T, 2*K), dtype=np.float32)
+            for t in range(T):
+                s, c = seq[t]
+                if c == 1:
+                    x[0, t, s] = 1.0
+                else:
+                    x[0, t, K + s] = 1.0
+            x = torch.from_numpy(x)
+            with torch.no_grad():
+                yhat = self._dkt_model(x)   # [1, T, K]
+                p = yhat[0, -1, :].detach().cpu().numpy()  # last time step
+            return p
 
     def recommended_questions_dkt(self, user_id: str, limit: int = 10, mix_ratio: float = 0.5):
         """
@@ -405,22 +447,13 @@ class Recommender:
           - challenge: proche de 0.55
         """
         self._load_dkt()
-        seen = set()
-        # questions déjà vues
-        seen_pipe = [
-            {"$lookup": {"from": "usersessions", "localField": "session_id", "foreignField": "user_session_id", "as": "us"}},
-            {"$unwind": "$us"},
-            {"$match": {"us.user_id": user_id}},
-            {"$group": {"_id": "$question_id"}}
-        ]
-        for r in self.db.responses.aggregate(seen_pipe):
-            if r["_id"]:
-                seen.add(r["_id"])
+
+        # Questions déjà vues (fusion : responses + training)
+        seen = _all_seen_question_ids(self.db, user_id)
 
         seq = self._user_sequence_for_dkt(user_id)
         p_vec = self._dkt_predict_vector(seq)  # size K
 
-        # Construire mapping question -> score par proximité à cible
         K = self._dkt_meta["num_skills"]
         idx_of = self._dkt_meta["skill2idx"]  # str->idx
 

@@ -5,6 +5,21 @@ import 'package:flutter/services.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/training_service.dart';
 
+String _reasonLabel(String code) {
+  switch (code) {
+    case 'cold_start':
+      return 'démarrage';
+    case 'weak_theme':
+      return 'révision thème faible';
+    case 'challenge':
+      return 'challenge';
+    case 'diversify':
+      return 'diversification';
+    default:
+      return code;
+  }
+}
+
 class TrainingSessionPage extends StatefulWidget {
   final List<String> questionIds;
   final int startIndex;
@@ -43,6 +58,9 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
   bool? _isCorrect;
   String? _correctLabel;
 
+  // Chrono pour temps de réponse
+  Stopwatch? _sw;
+
   @override
   void initState() {
     super.initState();
@@ -62,13 +80,19 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       _correctLabel = null;
     });
 
+    _sw?.stop();
+    _sw = null;
+
     try {
       final id = _ids[_idx];
       final encoded = Uri.encodeComponent(id);
       final res = await ApiService.get('/questions/$encoded');
       if (res.statusCode == 200) {
         final data = _safeJson(res.body);
-        setState(() => _q = data);
+        setState(() {
+          _q = data;
+          _sw = Stopwatch()..start();
+        });
       } else {
         setState(() => _error = "HTTP ${res.statusCode}");
       }
@@ -85,6 +109,16 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
     } catch (_) {
       return {};
     }
+  }
+
+  String? _questionIdOf(Map<String, dynamic> q) {
+    final v = q['question_id'] ?? q['_id'] ?? q['id'] ?? q['qid'];
+    if (v != null && v.toString().isNotEmpty) return v.toString();
+    // fallback: utilise la liste source si dispo
+    if (_idx >= 0 && _idx < _ids.length && _ids[_idx].isNotEmpty) {
+      return _ids[_idx];
+    }
+    return null;
   }
 
   List<_Ans> _answersOf(Map<String, dynamic> q) {
@@ -119,11 +153,47 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
         a.label.toString() == cid.toString();
   }
 
+  Future<void> _recordTrainingEvent({
+    required Map<String, dynamic> q,
+    required bool isCorrect,
+    int? responseTimeMs,
+  }) async {
+    final qid = _questionIdOf(q);
+    if (qid == null) {
+      debugPrint("recordTrainingEvent skipped: missing question_id");
+      return;
+    }
+
+    final body = {
+      "question_id": qid,
+      "theme": q["theme"],
+      "difficulty": q["difficulty"],
+      "correct": isCorrect,
+      "source": "training",
+      if (responseTimeMs != null) "response_time_ms": responseTimeMs,
+    };
+
+    try {
+      await ApiService.post(
+        "/user-sessions/record",
+        body: jsonEncode(body),
+      );
+    } catch (e) {
+      // silencieux : on ne bloque pas l’UX si l’enregistrement échoue
+      debugPrint("recordTrainingEvent failed: $e");
+    }
+  }
+
   Future<void> _onTapAnswer(int i) async {
     if (_selected != null) return; // déjà répondu
     final ans = _answersOf(_q ?? {})[i];
     final isOk = _isCorrectFor(_q ?? {}, ans);
     HapticFeedback.selectionClick();
+
+    final elapsed =
+        (_sw != null && _sw!.isRunning) ? _sw!.elapsedMilliseconds : null;
+    _sw?.stop();
+
     if (!mounted) return;
     setState(() {
       _selected = i;
@@ -135,6 +205,13 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
           )
           .label;
     });
+
+    // ⬇️ Enregistre l'événement d'entraînement
+    await _recordTrainingEvent(
+      q: _q ?? {},
+      isCorrect: isOk,
+      responseTimeMs: elapsed,
+    );
   }
 
   void _next() {
@@ -233,6 +310,12 @@ class _QuestionCard extends StatelessWidget {
             "${q['theme'] ?? 'Thème'} - ${q['difficulty'] ?? '???'} - ${q['name'] ?? ''}")
         .toString();
 
+    // ⬇️ Sous-titre à afficher sous l’énoncé
+    final subtitle = [
+      if (q['theme'] != null) 'Thème: ${q['theme']}',
+      if (q['difficulty'] != null) 'Difficulté: ${q['difficulty']}',
+    ].join(' • ');
+
     return Stack(
       children: [
         Center(
@@ -254,6 +337,16 @@ class _QuestionCard extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          subtitle,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     ...List.generate(answers.length, (i) {
                       final a = answers[i];

@@ -53,6 +53,7 @@ class _QuizScreenState extends State<QuizScreen> {
         widget.quizData['userSessionUuid'];
     _userSessionUuid = uuidAny?.toString() ?? '';
     if (_userSessionUuid.isEmpty) {
+      // ignore: avoid_print
       print("❌ QuizScreen: user_session_uuid manquant");
     }
 
@@ -232,45 +233,74 @@ class _QuizScreenState extends State<QuizScreen> {
                 for (int i = 0; i < question.options.length; i++)
                   _answerButton(i, question.options[i]),
                 const SizedBox(height: 16),
-                if (_showFeedback)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Image.asset(_commentator(), width: 320, height: 320),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                (_selectedIndex == _correctIndex)
-                                    ? "✅ Bien joué !"
-                                    : "❌ Dommage !",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: (_selectedIndex == _correctIndex)
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text("Points gagnés : $_pointsForCurrent",
-                                  style: const TextStyle(fontSize: 16)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                if (_showFeedback) _buildFeedback(context), // ⬅️ responsive
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // -- Responsive feedback with commentator + bubble --
+  Widget _buildFeedback(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxW = constraints.maxWidth;
+        final isNarrow = maxW < 700; // breakpoint simple
+        final num raw = maxW * (isNarrow ? 0.40 : 0.22);
+        final double imgSize = raw.clamp(120, 320).toDouble();
+
+        final img = Center(
+          child: SizedBox(
+            width: imgSize,
+            height: imgSize,
+            child: Image.asset(_commentator(), fit: BoxFit.contain),
+          ),
+        );
+
+        final bubble = _feedbackBubble();
+
+        return isNarrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  img,
+                  const SizedBox(height: 12),
+                  bubble,
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  img,
+                  const SizedBox(width: 12),
+                  Expanded(child: bubble),
+                ],
+              );
+      },
+    );
+  }
+
+  Widget _feedbackBubble() {
+    final ok = (_selectedIndex == _correctIndex);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            ok ? "✅ Bien joué !" : "❌ Dommage !",
+            style:
+                TextStyle(fontSize: 18, color: ok ? Colors.green : Colors.red),
+          ),
+          const SizedBox(height: 6),
+          Text("Points gagnés : $_pointsForCurrent",
+              style: const TextStyle(fontSize: 16)),
         ],
       ),
     );

@@ -224,23 +224,36 @@
         </div>
 
         <!-- Promotion / Rétrogradation -->
+        <!-- Promotion / Rétrogradation -->
         <div id="promotion-tools" class="section">
             <h2>Gestion des Utilisateurs</h2>
 
-            <form id="promote-form" style="margin-bottom:20px;">
+            <!-- ⚡ Promouvoir -->
+            <form id="promote-form"
+                    action="/admin/promote"
+                    method="post"
+                    style="margin-bottom:20px;">
                 <fieldset style="border:1px solid var(--border); border-radius:12px; padding:14px;">
-                    <legend>⚡ Promouvoir un Utilisateur</legend>
-                    <label>Email : <input type="email" name="email" placeholder="utilisateur@exemple.com" required></label>
-                    <button type="submit">⚡ Promouvoir</button>
+                <legend>⚡ Promouvoir un Utilisateur</legend>
+                <label>Email :
+                    <input type="email" name="email" placeholder="utilisateur@exemple.com" required>
+                </label>
+                <button type="submit">⚡ Promouvoir</button>
                 </fieldset>
             </form>
             <div id="promote-message" class="status-msg"></div>
 
-            <form id="demote-form" style="margin-top:16px;">
+            <!-- ⬇️ Rétrograder -->
+            <form id="demote-form"
+                    action="/admin/demote"
+                    method="post"
+                    style="margin-top:16px;">
                 <fieldset style="border:1px solid var(--border); border-radius:12px; padding:14px;">
-                    <legend>⬇️ Rétrograder un Utilisateur</legend>
-                    <label>Email : <input type="email" name="email" placeholder="utilisateur@exemple.com" required></label>
-                    <button type="submit">⬇️ Rétrograder</button>
+                <legend>⬇️ Rétrograder un Utilisateur</legend>
+                <label>Email :
+                    <input type="email" name="email" placeholder="utilisateur@exemple.com" required>
+                </label>
+                <button type="submit">⬇️ Rétrograder</button>
                 </fieldset>
             </form>
             <div id="demote-message" class="status-msg"></div>
