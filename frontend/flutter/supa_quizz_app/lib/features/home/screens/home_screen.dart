@@ -4,7 +4,6 @@ import '../../home/screens/login_screen.dart';
 import '../../leaderboard/screens/leaderboard_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../quiz/screens/play_screen.dart';
-import '../../../widgets/admin_shortcut_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,25 +26,34 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Quiz App',
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/logo/LogoSupaQuiz.png',
+              height: 28,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8),
+            const Text('Quiz App'),
+          ],
         ),
         backgroundColor: Colors.black,
         actions: [
-          // ⚙️ Raccourci vers l'interface Admin (même onglet)
+          // ⚙️ Raccourci Admin
           IconButton(
             icon: const Icon(Icons.settings_suggest_rounded),
             tooltip: 'Admin',
             onPressed: () async {
-              final uri = Uri.parse('/admin/login'); // même domaine (nginx)
+              final uri = Uri.parse('/admin/login'); // même domaine
               await launchUrl(
                 uri,
                 mode: LaunchMode.platformDefault,
-                webOnlyWindowName: '_self', // même onglet
+                webOnlyWindowName: '_self',
               );
             },
           ),
-          // 🎓 Bouton Entrainement
+          // 🎓 Entrainement
           IconButton(
             icon: const Icon(Icons.school),
             tooltip: 'Entrainement',
@@ -53,8 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.pushNamed(context, '/training');
             },
           ),
-
-          // 🔒 Déconnexion (conservé)
+          // 🔒 Déconnexion
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Déconnexion',
@@ -67,14 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-
-          // ❌ Clé (Quiz Privé) retirée comme demandé
-          // if (_currentIndex == 0)
-          //   IconButton(
-          //     icon: const Icon(Icons.vpn_key),
-          //     tooltip: 'Quiz Privé',
-          //     onPressed: () { ... },
-          //   ),
         ],
       ),
       body: _screens[_currentIndex],

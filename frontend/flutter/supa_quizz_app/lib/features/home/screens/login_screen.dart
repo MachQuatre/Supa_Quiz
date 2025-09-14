@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (res["ok"] == true) {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => HomeScreen()),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
         (_) => false,
       );
     } else {
@@ -37,16 +37,16 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  InputDecoration _inputDecoration(String label) => InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white),
-        enabledBorder: const OutlineInputBorder(
+  InputDecoration _inputDecoration(String label) => const InputDecoration(
+        labelText: '',
+        labelStyle: TextStyle(color: Colors.white),
+        enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: Colors.white),
         ),
-        focusedBorder: const OutlineInputBorder(
+        focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: Colors.purple),
         ),
-      );
+      ).copyWith(labelText: label);
 
   @override
   Widget build(BuildContext context) {
@@ -61,56 +61,74 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _form,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text("Connexion",
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _email,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration("Email"),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? "Email requis" : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _password,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration("Mot de passe"),
-                    obscureText: true,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? "Mot de passe requis" : null,
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(_error!, style: const TextStyle(color: Colors.red)),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const CircularProgressIndicator()
-                          : const Text("Se connecter"),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // --- Logo ---
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 12),
+                      child: Image.asset(
+                        'assets/logo/LogoSupaQuiz.png',
+                        height: 72,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _loading
-                        ? null
-                        : () {
-                            Navigator.push(
+                    const Text(
+                      "Connexion",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _email,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Email"),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? "Email requis" : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _password,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Mot de passe"),
+                      obscureText: true,
+                      validator: (v) => (v == null || v.isEmpty)
+                          ? "Mot de passe requis"
+                          : null,
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _submit,
+                        child: _loading
+                            ? const CircularProgressIndicator()
+                            : const Text("Se connecter"),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loading
+                          ? null
+                          : () {
+                              Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const SignupScreen()));
-                          },
-                    child: const Text("Créer un compte"),
-                  )
-                ]),
+                                  builder: (_) => const SignupScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text("Créer un compte"),
+                    )
+                  ],
+                ),
               ),
             ),
           ),
