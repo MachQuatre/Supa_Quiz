@@ -4,6 +4,8 @@ import '../../home/screens/login_screen.dart';
 import '../../leaderboard/screens/leaderboard_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../quiz/screens/play_screen.dart';
+import '../../../widgets/admin_shortcut_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +32,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.black,
         actions: [
+          // ⚙️ Raccourci vers l'interface Admin (même onglet)
+          IconButton(
+            icon: const Icon(Icons.settings_suggest_rounded),
+            tooltip: 'Admin',
+            onPressed: () async {
+              final uri = Uri.parse('/admin/login'); // même domaine (nginx)
+              await launchUrl(
+                uri,
+                mode: LaunchMode.platformDefault,
+                webOnlyWindowName: '_self', // même onglet
+              );
+            },
+          ),
           // 🎓 Bouton Entrainement
           IconButton(
             icon: const Icon(Icons.school),

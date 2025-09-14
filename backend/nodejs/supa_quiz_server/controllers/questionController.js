@@ -1,21 +1,19 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid"); // ✅ Import UUID (conservé)
+const { v4: uuidv4 } = require("uuid"); // conservé (utile ailleurs)
 const Question = require("../models/questionModel");
 const Quiz = require("../models/quizModel");
+const { isValidObjectId, Types } = require("mongoose");
 
 // ------------------------- helpers -------------------------
 function isObjectId(v) {
-  return mongoose.isValidObjectId(v);
+  return isValidObjectId(v);
 }
-
 function uniq(arr) {
-  return Array.from(new Set(arr.filter(Boolean)));
+  return Array.from(new Set((arr || []).filter(Boolean)));
 }
-
-// Plie en ASCII, retire diacritiques, puis sécurise (remplace caractères non alphanum par _)
 function asciiFold(s) {
   try {
-    return s
+    return String(s)
       .normalize("NFD")
       .replace(/\p{Diacritic}/gu, "")
       .replace(/[^\w-]/g, "_");
@@ -23,10 +21,8 @@ function asciiFold(s) {
     return s;
   }
 }
-
-// Fabrique des variantes raisonnables pour matcher la DB
 function candidatesFor(id) {
-  const raw = id || "";
+  const raw = (id ?? "").toString();
   const ascii = asciiFold(raw);
   const lower = raw.toLowerCase();
   const asciiLower = ascii.toLowerCase();
@@ -34,12 +30,23 @@ function candidatesFor(id) {
   const asciiNoSpace = ascii.replace(/\s+/g, "_");
   return uniq([raw, ascii, lower, asciiLower, noSpace, asciiNoSpace]);
 }
+function letterToIndex(ch) {
+  const map = { A: 0, B: 1, C: 2, D: 3, a: 0, b: 1, c: 2, d: 3 };
+  return Object.prototype.hasOwnProperty.call(map, ch) ? map[ch] : null;
+}
+function getLabel(v, i) {
+  if (typeof v === "string") return v;
+  return v?.text ?? v?.label ?? v?.answer ?? v?.value ?? `Réponse ${i + 1}`;
+}
+function getId(v, i) {
+  if (typeof v === "string") return v;
+  return v?.id ?? v?._id ?? v?.value ?? getLabel(v, i);
+}
 
-// Normalisation simple côté API pour coller au front training
+// ------------------------- normalisation (clé) -------------------------
 function normalizeQuestion(doc) {
   const q = doc && typeof doc.toObject === "function" ? doc.toObject() : (doc || {});
 
-  // Texte de la question
   const text =
     q.question_text ??
     q.text ??
@@ -48,18 +55,19 @@ function normalizeQuestion(doc) {
     q.title ??
     "Question";
 
-  // Réponses (on accepte strings ou objets)
-  let answers =
+  // 1) réponses -> tableau de libellés (strings)
+  let answersRaw =
     q.answer_options ??
     q.answers ??
     q.options ??
     q.choices ??
     [];
+  if (!Array.isArray(answersRaw)) answersRaw = [];
 
-  if (!Array.isArray(answers)) answers = [];
+  const answers = answersRaw.map((v, i) => getLabel(v, i).toString());
 
-  // Identifiant de la réponse correcte
-  let correctId =
+  // 2) déterminer l'index correct (0..n-1) à partir de n'importe quel format en base
+  let correctIdRaw =
     q.correct_answer ??
     q.correct_id ??
     q.correctAnswerId ??
@@ -68,29 +76,85 @@ function normalizeQuestion(doc) {
     q.correct ??
     null;
 
-  // Harmonisation du correctId selon la forme des réponses
+  let correctIndex = null;
   try {
-    if (typeof correctId === "number" && answers[correctId] !== undefined) {
-      const a = answers[correctId];
-      correctId = (a && typeof a === "object")
-        ? (a.id ?? a._id ?? a.value ?? a.text ?? a.label ?? a.answer ?? correctId)
-        : a;
-    } else if (typeof correctId === "object" && correctId !== null) {
-      correctId = correctId.id ?? correctId._id ?? correctId.value ?? correctId.text ?? correctId.label ?? correctId.answer ?? null;
+    if (typeof correctIdRaw === "number") {
+      correctIndex = Number.isInteger(correctIdRaw) ? correctIdRaw : null;
+    } else if (typeof correctIdRaw === "string") {
+      // lettre A/B/C/D ?
+      const li = letterToIndex(correctIdRaw.trim());
+      if (li !== null) {
+        correctIndex = li;
+      } else {
+        // essayer de matcher par libellé/ID
+        const s = correctIdRaw.toString();
+        for (let i = 0; i < answersRaw.length; i++) {
+          const lbl = getLabel(answersRaw[i], i).toString();
+          const id = getId(answersRaw[i], i).toString();
+          if (lbl === s || id === s) { correctIndex = i; break; }
+        }
+      }
+    } else if (correctIdRaw && typeof correctIdRaw === "object") {
+      const s =
+        correctIdRaw.id ??
+        correctIdRaw._id ??
+        correctIdRaw.value ??
+        correctIdRaw.text ??
+        correctIdRaw.label ??
+        correctIdRaw.answer ??
+        null;
+      if (s != null) {
+        const ss = s.toString();
+        for (let i = 0; i < answersRaw.length; i++) {
+          const lbl = getLabel(answersRaw[i], i).toString();
+          const id = getId(answersRaw[i], i).toString();
+          if (lbl === ss || id === ss) { correctIndex = i; break; }
+        }
+      }
     }
-  } catch (_) {}
+
+    if (typeof correctIndex === "number") {
+      if (correctIndex < 0 || correctIndex >= answers.length) correctIndex = null;
+    }
+  } catch (_) {
+    correctIndex = null;
+  }
+
+  // 3) dérivés compatibles (index, lettre, libellé) + alias de champs
+  const letters = ["A", "B", "C", "D"];
+  const correct_letter = (typeof correctIndex === "number" && correctIndex >= 0 && correctIndex < letters.length)
+    ? letters[correctIndex]
+    : null;
+
+  const correct_label = (typeof correctIndex === "number" && answers[correctIndex] != null)
+    ? answers[correctIndex]
+    : (typeof correctIdRaw === "string" ? correctIdRaw : null);
 
   return {
     ...q,
+
+    // champs normalisés (nouveaux)
     text,
-    answers,
-    correct_id: correctId,
+    answers,                         // tableau de strings (ordre stable)
+    correct_id: correctIndex,        // INDEX numérique attendu par l'écran d'entraînement
+    correct_letter,                  // lettre équivalente (A/B/C/D)
+    correct_label,                   // libellé équivalent (ex: "JavaScript")
+    letters: letters.slice(0, answers.length),
+
+    // alias pour compatibilité descendante (le front peut lire ce qu'il veut)
+    answer_options: answers,
+    options: answers,
+    choices: answers,
+    correct_index: correctIndex,
+    correctIndex: correctIndex,
+    correct: correctIndex,
+    correct_answer: correct_label,   // texte (utile si le front compare des strings)
   };
 }
 
 // ------------------------- controllers -------------------------
 
-// ✅ Récupérer toutes les questions
+// Liste brute (compat admin)
 exports.getAllQuestions = async (req, res) => {
   try {
     const questions = await Question.find();
@@ -101,23 +165,17 @@ exports.getAllQuestions = async (req, res) => {
   }
 };
 
-// ✅ Récupérer une question par ID (ObjectId OU code métier)
-// ⚠️ Renvoie l'objet question normalisé directement (pas { success, question })
+// Détail normalisé (utilisé par l'entraînement IA)
 exports.getQuestionById = async (req, res) => {
   try {
-    const rawId = req.params.id; // Express a déjà décodé %xx
+    const rawId = req.params.id;
     const cands = candidatesFor(rawId);
-
     console.log(`[questions] lookup id="${rawId}" candidates=${JSON.stringify(cands)}`);
 
     let question = null;
-
-    // 1) _id Mongo
     if (isObjectId(rawId)) {
       question = await Question.findById(rawId).lean();
     }
-
-    // 2) Par champs "code" applicatifs (tolérant aux variantes)
     if (!question) {
       question = await Question.findOne({
         $or: [
@@ -146,7 +204,7 @@ exports.getQuestionById = async (req, res) => {
   }
 };
 
-// ✅ Récupérer des questions par thème
+// Par thème (brut)
 exports.getQuestionsByTheme = async (req, res) => {
   try {
     const { theme } = req.params;
@@ -166,25 +224,21 @@ exports.createQuestion = async (req, res) => {
     const { quiz_id, question_text, answer_options, correct_answer, difficulty, theme } = req.body;
 
     console.log("🔍 quiz_id reçu :", quiz_id);
-
-    if (!quiz_id) {
-      return res.status(400).json({ message: "L'ID du quiz est requis." });
-    }
+    if (!quiz_id) return res.status(400).json({ message: "L'ID du quiz est requis." });
 
     const newQuestion = new Question({
-      question_id: new mongoose.Types.ObjectId().toString(),  // ✅ Génère un ID applicatif
+      question_id: new mongoose.Types.ObjectId().toString(),
       quiz_id,
       question_text,
       answer_options,
       correct_answer,
       difficulty,
-      theme
+      theme,
     });
 
     await newQuestion.save();
     console.log("✅ Question ajoutée :", newQuestion);
 
-    // 🔄 Mettre à jour le `question_count` du quiz
     const updatedQuiz = await Quiz.findOneAndUpdate(
       { quiz_id: String(quiz_id) },
       { $inc: { question_count: 1 } },
@@ -201,7 +255,7 @@ exports.createQuestion = async (req, res) => {
     res.status(201).json({
       message: "Question ajoutée avec succès",
       question: newQuestion,
-      updatedQuiz
+      updatedQuiz,
     });
   } catch (error) {
     console.error("❌ Erreur lors de la création de la question :", error);
@@ -209,7 +263,6 @@ exports.createQuestion = async (req, res) => {
   }
 };
 
-// ✅ Mettre à jour une question
 exports.updateQuestion = async (req, res) => {
   try {
     const updatedQuestion = await Question.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -223,7 +276,6 @@ exports.updateQuestion = async (req, res) => {
   }
 };
 
-// ✅ Supprimer une question
 exports.deleteQuestion = async (req, res) => {
   try {
     const deletedQuestion = await Question.findByIdAndDelete(req.params.id);
@@ -236,3 +288,6 @@ exports.deleteQuestion = async (req, res) => {
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 };
+
+// (optionnel) export de la normalisation si tu veux la réutiliser ailleurs (AI, etc.)
+module.exports.__normalizeQuestion = normalizeQuestion;
