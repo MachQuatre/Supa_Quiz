@@ -74,6 +74,7 @@ flutter:
     - assets/achievements/ach1.png
     - assets/achievements/ach2.png
     - assets/achievements/ach3.png
+    - assets/logo/LogoSupaQuiz.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
