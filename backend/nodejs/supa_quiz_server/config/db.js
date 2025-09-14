@@ -1,26 +1,23 @@
-// backend/nodejs/supa_quiz_server/config/db.js
-require("dotenv").config();
 const mongoose = require("mongoose");
+require("dotenv").config();
 
 const mongoURI = process.env.MONGO_URI;
-
 if (!mongoURI) {
-    console.error("❌ Erreur: La variable MONGO_URI est undefined !");
-    process.exit(1);
+  console.error("❌ Erreur: La variable MONGO_URI est undefined !");
+  process.exit(1);
 }
-
-// (ajout)
 const safeUri = mongoURI.replace(/\/\/([^@]+)@/, "//***:***@");
 console.log("🔌 Mongo target:", safeUri);
 
-const connectDB = async () => {
-    try {
-        await mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
-        console.log("✅ Connexion à MongoDB réussie !");
-    } catch (error) {
-        console.error("❌ Erreur de connexion MongoDB:", error);
-        process.exit(1);
-    }
-};
+async function connectDB() {
+  try {
+-   await mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
++   await mongoose.connect(mongoURI); // options dépréciées retirées
+    console.log("✅ Connexion à MongoDB réussie !");
+  } catch (error) {
+    console.error("❌ Erreur de connexion MongoDB:", error);
+    process.exit(1);
+  }
+}
 
 module.exports = connectDB;

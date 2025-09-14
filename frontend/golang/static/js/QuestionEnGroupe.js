@@ -65,7 +65,7 @@ function setupBulkQuestionUpload() {
                         question_text: q.content,
                         theme: q.theme || "général",
                         difficulty: q.difficulty || "moyen",
-                        correct_answer: ["A", "B", "C", "D"][q.answer - 1],
+                        correct_answer: q.options[q.answer - 1],
                         answer_options: q.options
                     };
 

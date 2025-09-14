@@ -1,68 +1,76 @@
-// models/userSessionModel.js
 const mongoose = require("mongoose");
 
-const UUIDv4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-/* ---- Subschema ---- */
-const questionPlayedSchema = new mongoose.Schema(
+/** Sous-doc pour une question jouée (flux Game/Kahoot) */
+const QuestionPlayedSchema = new mongoose.Schema(
   {
-    // ⚠️ was: required: true —> le rendre optionnel sinon /end plante si tu n'envoies pas les ids
-    question_id: { type: String }, 
-    answered: { type: Boolean, default: false },
+    question_id: { type: String },          // id applicatif
+    answered: { type: Boolean, default: true },
     is_correct: { type: Boolean, default: false },
-    response_time_ms: { type: Number, default: 0 },
-    score: { type: Number, default: 0 },
+    response_time_ms: { type: Number },
+    score: { type: Number },
     theme: { type: String },
   },
   { _id: false }
 );
 
-/* ---- UserSession ---- */
-const userSessionSchema = new mongoose.Schema(
+/**
+ * Modèle "UserSession" polymorphe :
+ * - Mode GameSession (partie complète): user_session_id, game_session_id, quiz_id, questions_played[], score...
+ * - Mode Training (événement léger): user_id, question_id, theme, difficulty, correct, response_time_ms, source
+ */
+const UserSessionSchema = new mongoose.Schema(
   {
-    user_session_id: {
-      type: String, required: true, unique: true, index: true,
-      validate: { validator: (v) => UUIDv4.test(String(v)), message: "user_session_id doit être un UUIDv4." },
+    /* ---- Identifiants communs ---- */
+    user_id: { type: String, required: true },   // index défini plus bas
+
+    /* ---- Mode GameSession (partie structurée) ---- */
+    user_session_id: { type: String },           // index défini plus bas
+    game_session_id: { type: String },
+    quiz_id: { type: String },
+    status: {
+      type: String,
+      enum: ["started", "ended", "abandoned"],
+      default: "started",
     },
-    game_session_id: { type: String, index: true },
+    start_time: { type: Date, default: Date.now },
+    end_time: { type: Date },
 
-    user_id: {
-      type: String, required: true, index: true,
-      validate: { validator: (v) => UUIDv4.test(String(v)), message: "user_id doit être un UUIDv4 (users.user_id)." },
-    },
-
-    quiz_id: { type: String, required: true },
-
-    // Horodatage
-    start_time: { type: Date, default: Date.now, index: true },
-    end_time:   { type: Date, index: true },
-
-    // Scores
-    score: { type: Number, default: 0, index: true },
+    questions_played: { type: [QuestionPlayedSchema], default: [] },
+    score: { type: Number, default: 0 },
     completion_percentage: { type: Number, default: 0 },
-
-    // Métadonnées
-    theme: { type: String },
-
-    // ✅ Champs manquants (écrits par /end)
-    status: { type: String, default: "active", index: true }, // "active" -> "ended"
     elapsed_ms: { type: Number },
     streak_max: { type: Number },
 
-    // Détail des questions
-    questions_played: { type: [questionPlayedSchema], default: [] },
+    /* ---- Attributs communs / analytiques ---- */
+    theme: { type: String },
+    difficulty: { type: String },
+
+    /* ---- Mode Training (événement léger, 1 question) ---- */
+    question_id: { type: String },
+    correct: { type: Boolean },
+    response_time_ms: { type: Number },
+    source: { type: String, default: "training" }, // training|quiz|...
   },
-  { versionKey: false }
+  {
+    timestamps: true,                // createdAt / updatedAt
+    collection: "usersessions",      // colle à ta collection existante
+  }
 );
 
-/* Normalisation légère */
-userSessionSchema.pre("validate", function (next) {
+/** Garde-fous légers */
+UserSessionSchema.pre("validate", function (next) {
+  if (!this.status) this.status = "started";
+  if (!this.start_time) this.start_time = new Date();
+  if (!Array.isArray(this.questions_played)) this.questions_played = [];
   if (this.user_id != null) this.user_id = String(this.user_id).trim();
   if (this.user_session_id != null) this.user_session_id = String(this.user_session_id).trim();
   next();
 });
 
-/* Index utiles */
-userSessionSchema.index({ user_id: 1, end_time: -1, start_time: -1 });
+/** Index utiles (évite les doublons : pas de `index:true` sur les champs ci-dessus) */
+UserSessionSchema.index({ user_session_id: 1 });
+UserSessionSchema.index({ user_id: 1 });
+UserSessionSchema.index({ user_id: 1, theme: 1, createdAt: -1 });
+UserSessionSchema.index({ user_id: 1, end_time: -1, start_time: -1 });
 
-module.exports = mongoose.model("UserSession", userSessionSchema);
+module.exports = mongoose.model("UserSession", UserSessionSchema);

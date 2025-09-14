@@ -11,21 +11,25 @@ type TemplateData struct {
 }
 
 func DashboardHandler(w http.ResponseWriter, r *http.Request) {
-	// ✅ Récupération de l'ID utilisateur injecté via middleware
+	// user_id injecté par le middleware
 	userID := r.Context().Value("user_id")
 	if userID == nil {
-		http.Error(w, "Utilisateur non connecté", http.StatusUnauthorized)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
-	// ✅ Récupération du token via le cookie sécurisé
+	// ⚠️ Le cookie posé au login s'appelle "session_token"
 	tokenCookie, err := r.Cookie("session_token")
 	if err != nil || tokenCookie.Value == "" {
-		http.Error(w, "Token manquant", http.StatusUnauthorized)
-		return
+		// Par sécurité, on retente avec "token" si de vieilles versions existent
+		if legacy, err2 := r.Cookie("token"); err2 == nil && legacy.Value != "" {
+			tokenCookie = legacy
+		} else {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 	}
 
-	// ✅ Injection des données dans le template
 	data := TemplateData{
 		Token:  tokenCookie.Value,
 		UserID: userID.(string),
@@ -36,6 +40,5 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Erreur affichage page", http.StatusInternalServerError)
 		return
 	}
-
-	tmpl.Execute(w, data)
+	_ = tmpl.Execute(w, data)
 }
