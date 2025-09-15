@@ -316,6 +316,18 @@ class _QuestionCard extends StatelessWidget {
       if (q['difficulty'] != null) 'Difficulté: ${q['difficulty']}',
     ].join(' • ');
 
+    // ➤ CONTRASTE : si thème sombre, on force blanc
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
+        color: isDark ? Colors.white : null, fontWeight: FontWeight.w600);
+    final subtitleStyle = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: isDark ? Colors.white70 : null);
+    final answerTextStyle = isDark
+        ? Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white)
+        : null;
+
     return Stack(
       children: [
         Center(
@@ -334,7 +346,7 @@ class _QuestionCard extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         text,
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: titleStyle, // forcé blanc en dark mode
                       ),
                     ),
                     if (subtitle.isNotEmpty) ...[
@@ -343,7 +355,7 @@ class _QuestionCard extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           subtitle,
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: subtitleStyle, // blanc 70% en dark
                         ),
                       ),
                     ],
@@ -384,7 +396,10 @@ class _QuestionCard extends StatelessWidget {
                             ),
                             child: Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(a.label),
+                              child: Text(
+                                a.label,
+                                style: answerTextStyle, // blanc en dark
+                              ),
                             ),
                           ),
                         ),
